@@ -11,8 +11,10 @@
  * M5Stack@^0.4.6: https://github.com/m5stack/M5Stack
  */
 
+#include <Arduino.h>
+
 #include <driver/rmt.h>
-#include "M5Stack.h"
+#include "M5Unified.h"
 
 #define RF433RX
 
