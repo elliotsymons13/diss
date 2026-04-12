@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"name": "LoRaModule868Tx",
+			"path": "M5Stack/LoRaModule868Tx"
+		},
+		{
+			"name": "LoRaModule868Rx",
+			"path": "M5Stack/LoRaModule868Rx"
+		}
+	],
+	"settings": {}
+}
