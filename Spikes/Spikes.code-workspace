@@ -7,6 +7,14 @@
 		{
 			"name": "LoRaModule868Rx",
 			"path": "M5Stack/LoRaModule868Rx"
+		},
+		{
+			"name": "RFUnit433Tx",
+			"path": "M5Stack/RFUnit433Tx"
+		},
+		{
+			"name": "RFUnit433Rx",
+			"path": "M5Stack/RFUnit433Rx"
 		}
 	],
 	"settings": {}
