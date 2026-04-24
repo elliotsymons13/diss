@@ -15,6 +15,10 @@
 		{
 			"name": "RFUnit433Rx",
 			"path": "M5Stack/RFUnit433Rx"
+		},
+		{
+			"name": "RFUnit433 example",
+			"path": "M5Stack/RFUnit433 example"
 		}
 	],
 	"settings": {}
