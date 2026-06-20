@@ -12,16 +12,19 @@
  */
 
 #include <Arduino.h>
+#include <M5GFX.h>
+#include <M5CoreS3.h>
 
 #include <driver/rmt.h>
 #include "M5Unified.h"
 
-#define RF433RX
+
+// #define RF433RX // define for Rx mode, comment for Tx mode
 
 #define RMT_TX_CHANNEL  (RMT_CHANNEL_0)
-#define RMT_RX_CHANNEL  (RMT_CHANNEL_1)
-#define RTM_TX_GPIO_NUM (26)
-#define RTM_RX_GPIO_NUM (36)
+#define RMT_RX_CHANNEL  (RMT_CHANNEL_4)
+#define RTM_TX_GPIO_NUM (9) // modified for CoreS3
+#define RTM_RX_GPIO_NUM (8) // modified for CoreS3
 #define RTM_BLOCK_NUM   (1)
 #define RMT_CLK_DIV     (80) /*!< RMT counter clock divider */
 #define RMT_1US_TICKS   (80000000 / RMT_CLK_DIV / 1000000)
@@ -56,11 +59,11 @@ void initRMT()
     ESP_ERROR_CHECK(rmt_config(&txconfig));
     ESP_ERROR_CHECK(rmt_driver_install(txconfig.channel, 0, 0));
 #else
-    rmt_config_t rxconfig;
+    rmt_config_t rxconfig = {};
     rxconfig.rmt_mode                      = RMT_MODE_RX;
     rxconfig.channel                       = RMT_RX_CHANNEL;
     rxconfig.gpio_num                      = gpio_num_t(RTM_RX_GPIO_NUM);
-    rxconfig.mem_block_num                 = 6;
+    rxconfig.mem_block_num                 = RTM_BLOCK_NUM; // was hardcoded 6;
     rxconfig.clk_div                       = RMT_CLK_DIV;          // 时钟分频
     rxconfig.rx_config.filter_en           = true;                 // 开启滤波器
     rxconfig.rx_config.filter_ticks_thresh = 200 * RMT_1US_TICKS;  // 滤波信号宽度100*1M = 100us
@@ -96,6 +99,7 @@ void send(uint8_t* buff, size_t size)
 
 void setup()
 {
+    Serial.begin(115200);
     M5.begin();
     M5.Lcd.setRotation(1);
     M5.Lcd.fillRect(0, 0, 320, 240, TFT_BLACK);
@@ -104,15 +108,18 @@ void setup()
     M5.Lcd.drawString("RF433 factory Test", 20, 2, 2);
     pinMode(RTM_TX_GPIO_NUM, OUTPUT);
     pinMode(RTM_RX_GPIO_NUM, INPUT);
+    Serial.println("Pins configured. Initializing RMT...");
     initRMT();
+    Serial.println("initRMT done");
     delay(100);
     M5.Lcd.setCursor(5, 100);
     M5.Lcd.setTextSize(2);
 #ifndef RF433RX
-    M5.Lcd.print("Click Btn A send data");
+    M5.Lcd.print("Tap screen to send data");
 #else
     M5.Lcd.print("Use Serial to view data");
 #endif
+    delay(10000); //HACK for some reason needed so screen persists
 
     // rf.begin<PT2262>(26,27).arg<int>(1000);
 }
@@ -171,10 +178,11 @@ int parsedData(rmt_item32_t* item, size_t size, uint8_t* dataptr, size_t maxsize
 void loop()
 {
 #ifndef RF433RX
-    if (M5.BtnA.wasPressed()) {
+    m5::Touch_Class::touch_detail_t touch = CoreS3.Touch.getDetail();
+	if (touch.wasReleased()) {
         Serial.println("SEND");
         send(data, 6);
-    }
+	}
 #else
     int revicecnt = 0;
 
