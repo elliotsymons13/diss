@@ -27,7 +27,7 @@
 #define RMT_1US_TICKS   (80000000 / RMT_CLK_DIV / 1000000)
 #define RMT_1MS_TICKS   (RMT_1US_TICKS * 1000)
 
-rmt_item32_t rmtbuff[2048];
+const uint16_t rx_buff_size = 2048*8;
 
 #define T0H 670
 #define T1H 320
@@ -39,8 +39,10 @@ rmt_item32_t rmtbuff[2048];
 #define RMT_START_CODE0 {4868, 1, 2469, 0}
 #define RMT_START_CODE1 {1647, 1, 315, 0}
 
-const uint8_t expected_data_len = 6;
-uint8_t expected_data[expected_data_len] = {0xAA, 0x55, 0x01, 0x02, 0x03, 0x04};
+// XXX hardcoded!
+// examples for use, in reality calling library will define and pass in the data to be sent
+const uint8_t expected_data_len = 6; // expect 6 bytes of data to follow the length byte
+uint8_t expected_data[1+expected_data_len] = {expected_data_len, 0xAA, 0x55, 0x01, 0x02, 0x03, 0x04};
 
 void initRMT()
 {
@@ -55,7 +57,7 @@ void initRMT()
     rxconfig.rx_config.idle_threshold      = 3 * RMT_1MS_TICKS;
 
     ESP_ERROR_CHECK(rmt_config(&rxconfig));
-    ESP_ERROR_CHECK(rmt_driver_install(rxconfig.channel, 2048, 0));
+    ESP_ERROR_CHECK(rmt_driver_install(rxconfig.channel, rx_buff_size, 0));
 }
 
 
@@ -83,9 +85,7 @@ void setup()
     M5.Lcd.setCursor(5, 100);
     M5.Lcd.setTextSize(2);
 
-    // delay(1000); //HACK for some reason needed so screen persists
     M5.Lcd.print("Use Serial to view data");
-    // delay(1000); //HACK for some reason needed so screen persists
 
 }
 
@@ -96,16 +96,16 @@ void setup()
  * Takes an array of encoded bits ('RMT items'), and samples each to deduce 0 or 1. 
  * 
  */
-int parsedData(rmt_item32_t* item, size_t size, uint8_t* dataptr, size_t maxsize)
+int parsedData(rmt_item32_t* item, uint8_t* conveyed_size, size_t rx_size, uint8_t* dataptr, size_t maxsize)
 {
-    if((item == nullptr)||(size < 4))return -1;
-    if (size < 4) return -1;
-    Serial.printf("size:%d\r\n", size);
+    if((item == nullptr)||(rx_size < 4))return -1;
+    if (rx_size < 4) return -1;
+    Serial.printf("rx_size:%d\r\n", rx_size);
     unsigned int cnt        = 0;
     uint8_t data   = 0;
     uint8_t bitcnt = 0, byte_cnt = 0;
     if (((item[0].level0 == 0)) && (item[0].duration0 > 2300) && (item[0].duration0 < 2600)) {
-        // dataptr = (uint8_t*)malloc(size * sizeof(uint8_t));
+        // dataptr = (uint8_t*)malloc(rx_size * sizeof(uint8_t));
         rmt_item32_t candidateBit;
         candidateBit.level0    = 1;
         candidateBit.level1    = 0;
@@ -128,6 +128,8 @@ int parsedData(rmt_item32_t* item, size_t size, uint8_t* dataptr, size_t maxsize
                         Serial.printf("[%d:]%02x ", byte_cnt, data); // print the byte in hex (2 digits)
                         if (byte_cnt >= maxsize) {
                             Serial.printf("\r\nBuffer overflow, maxsize=%d\r\n. Printing partial rx only. ", maxsize);
+                            *conveyed_size = dataptr[0];
+                            Serial.printf("conveyed size: %d\n", *conveyed_size);
                             return byte_cnt;
                         }
                         dataptr[byte_cnt] = data;
@@ -137,15 +139,20 @@ int parsedData(rmt_item32_t* item, size_t size, uint8_t* dataptr, size_t maxsize
                     }
                 } else {
                     Serial.printf("bytes rxd in pkt: %d", byte_cnt);
+                    *conveyed_size = dataptr[0];
+                    Serial.printf("conveyed size: %d\n", *conveyed_size);
                     return byte_cnt;
                 }
             }
             candidateBit.duration0 = item[cnt].duration1;
-            Serial.printf("symbols processed count %d, of %u\n", cnt, size);
-        } while (cnt < size);
+            Serial.printf("symbols processed count %d, of %u\n", cnt, rx_size);
+        } while (cnt < rx_size);
 
         Serial.println("END");
     }
+    // record conveyed size (first byte)
+    *conveyed_size = dataptr[0];
+    Serial.printf("conveyed size: %d\n", *conveyed_size);
     return byte_cnt;
 }
 
@@ -160,20 +167,29 @@ void loop()
     while (rb) {
         size_t rx_size     = 0;
         rmt_item32_t* item = (rmt_item32_t*)xRingbufferReceive(rb, &rx_size, 500);
+        Serial.printf("---------\n");
         if (item != nullptr) {
             if (rx_size != 0) {
                 uint8_t MAXSIZE = 255;
                 uint8_t databuff[MAXSIZE+1] = {0};
                 rx_size = rx_size / sizeof(rmt_item32_t); // convert from bytes to number of RMT items
-                Serial.printf("\r\nlive buff size:%d RMT items\r\n", rx_size);
-                int size = parsedData(item, rx_size, databuff, MAXSIZE);
+                Serial.printf("\r\nlive buff rx_size: %d RMT items\r\n", rx_size);
+
+                uint8_t conveyed_data_len = 0;
+                size_t parsed_size = parsedData(item, &conveyed_data_len, rx_size, databuff, MAXSIZE);
                 // HACK example currently validates against a specific pattern, but this should be replaced with a more robust validation method
                 
-                                // TODO validate expexted function 
+                if (conveyed_data_len == parsed_size) {
+                    Serial.printf("Conveyed data length matches parsed size: %d bytes\r\n", parsed_size);
+                } else {
+                    Serial.printf("Conveyed data length (%d) does not match parsed size (%d)\r\n", conveyed_data_len, parsed_size);
+                }
+
+                // TODO validate expexted function 
                 bool dataMatchesExpected = true;
                 for (int i = 0; i < expected_data_len; i++) {
                     if (databuff[i] != expected_data[i]) {
-                        Serial.printf("Data mismatch at index %d: expected 0x%02X, got 0x%02X\r\n", i, expected_data[i], databuff[i]);
+                        // Serial.printf("Data mismatch at index %d: expected 0x%02X, got 0x%02X\r\n", i, expected_data[i], databuff[i]);
                         dataMatchesExpected = false;
                     }
                 }
@@ -185,21 +201,11 @@ void loop()
                 if (recievecnt == 4) {
                     M5.Lcd.fillRect(0, 20, 320, 220, TFT_GREEN);
                 }
-
-                
-                // if ((size >= 5) && (databuff[0] == 0xaa) && (databuff[1] == 0x55) && (databuff[2] == 0x01) &&
-                //     (databuff[3] == 0x02) && (databuff[4] == 0x03)) { // TODO && 0x04
-                //     recievecnt++;
-                    
-                //     if (recievecnt == 4) {
-                //         M5.Lcd.fillRect(0, 20, 320, 220, TFT_GREEN);
-                //     }
-                // }
             }
             vRingbufferReturnItem(rb, (void*)item);
         } else {
             if (recievecnt != 0) {
-                Serial.printf("Recieve %d\r\n", recievecnt);
+                Serial.printf("Recieve count: %d\r\n", recievecnt);
                 M5.Lcd.fillRect(0, 20, 320, 220, TFT_RED);
             }
             recievecnt = 0;

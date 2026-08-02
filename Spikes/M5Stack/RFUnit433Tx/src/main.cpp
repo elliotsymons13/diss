@@ -58,11 +58,16 @@ void initRMT()
 }
 
 
+// examples for use, in reality calling library will define and pass in the data to be sent
 // test data will generate (2 + 6 * 8) = 50 RMT items to convey 6 bytes
-const uint8_t data_len = 6;
-uint8_t data[data_len] = {0xAA, 0x55, 0x01, 0x02, 0x03, 0x04};
+// the first byte encodes the length of the data to follow
+const uint8_t user_data_len = 6;
+uint8_t data[1+user_data_len] = {user_data_len, 0xAA, 0x55, 0x01, 0x02, 0x03, 0x04};
 
-void send(uint8_t* buff, size_t size)
+const uint8_t invalid_user_data_len = 6;
+uint8_t invalid_data[1+invalid_user_data_len] = {invalid_user_data_len+1, 0xAA, 0x55, 0x01, 0x02, 0x03, 0x04};
+
+void send(uint8_t* buff, size_t size, uint8_t tx_repeats = 3)
 {
     rmtbuff[0] = (rmt_item32_t){RMT_START_CODE0};
     rmtbuff[1] = (rmt_item32_t){RMT_START_CODE1};
@@ -75,7 +80,7 @@ void send(uint8_t* buff, size_t size)
     }
     const uint32_t rmt_items = 2 + size * 8; // RMT protocol has 2 leading items (start codes) and then 8 items per byte of data
     Serial.printf("Sending %d bytes and %u items\n", size, rmt_items);
-    for (int i = 0; i < 8; i++) {
+    for (int i = 0; i < tx_repeats; i++) {
         ESP_ERROR_CHECK(rmt_write_items(RMT_TX_CHANNEL, rmtbuff, rmt_items, false));
         ESP_ERROR_CHECK(rmt_wait_tx_done(RMT_TX_CHANNEL, portMAX_DELAY));
     }
@@ -105,9 +110,7 @@ void setup()
     M5.Lcd.setCursor(5, 100);
     M5.Lcd.setTextSize(2);
 
-    delay(1000); //HACK for some reason needed so screen persists
     M5.Lcd.print("Tap screen to send data");
-    delay(1000); //HACK for some reason needed so screen persists
 
 }
 
@@ -117,7 +120,8 @@ void loop()
     m5::Touch_Class::touch_detail_t touch = CoreS3.Touch.getDetail();
 	if (touch.wasReleased()) {
         Serial.println("SEND");
-        send(data, data_len);
+        send(data, user_data_len, 12);
+        // send(invalid_data, invalid_user_data_len);
 	}
 
     delay(10);
