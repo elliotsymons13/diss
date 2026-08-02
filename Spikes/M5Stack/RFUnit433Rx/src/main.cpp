@@ -39,6 +39,9 @@ rmt_item32_t rmtbuff[2048];
 #define RMT_START_CODE0 {4868, 1, 2469, 0}
 #define RMT_START_CODE1 {1647, 1, 315, 0}
 
+const uint8_t expected_data_len = 6;
+uint8_t expected_data[expected_data_len] = {0xAA, 0x55, 0x01, 0x02, 0x03, 0x04};
+
 void initRMT()
 {
     rmt_config_t rxconfig = {};
@@ -87,61 +90,69 @@ void setup()
 }
 
 
+/*
+ * Parse received RMT items into a byte array
+ * 
+ * Takes an array of encoded bits ('RMT items'), and samples each to deduce 0 or 1. 
+ * 
+ */
 int parsedData(rmt_item32_t* item, size_t size, uint8_t* dataptr, size_t maxsize)
 {
-    // if((item == nullptr)||(size < 4))return -1;
+    if((item == nullptr)||(size < 4))return -1;
     if (size < 4) return -1;
-    int cnt        = 0;
+    Serial.printf("size:%d\r\n", size);
+    unsigned int cnt        = 0;
     uint8_t data   = 0;
-    uint8_t bitcnt = 0, hex_cnt = 0;
+    uint8_t bitcnt = 0, byte_cnt = 0;
     if (((item[0].level0 == 0)) && (item[0].duration0 > 2300) && (item[0].duration0 < 2600)) {
         // dataptr = (uint8_t*)malloc(size * sizeof(uint8_t));
-        rmt_item32_t dataitem;
-        dataitem.level0    = 1;
-        dataitem.level1    = 0;
-        dataitem.duration0 = item[0].duration1;
+        rmt_item32_t candidateBit;
+        candidateBit.level0    = 1;
+        candidateBit.level1    = 0;
+        candidateBit.duration0 = item[0].duration1;
         do {
             cnt++;
-            dataitem.duration1 = item[cnt].duration0;
+            candidateBit.duration1 = item[cnt].duration0;
             if (cnt > 1) {
                 // Serial.printf("%d:%d,%d:%d
-                // ",dataitem.level0,dataitem.duration0,dataitem.level1,dataitem.duration1);
-                if (((dataitem.duration0 + dataitem.duration1) < 1100) &&
-                    ((dataitem.duration0 + dataitem.duration1) > 800)) {
+                // ",candidateBit.level0,candidateBit.duration0,candidateBit.level1,candidateBit.duration1);
+                if (((candidateBit.duration0 + candidateBit.duration1) < 1100) &&
+                    ((candidateBit.duration0 + candidateBit.duration1) > 800)) {
                     data <<= 1;
-                    if (dataitem.duration0 > dataitem.duration1) {
+                    if (candidateBit.duration0 > candidateBit.duration1) {
                         data += 1;
                     }
 
                     bitcnt++;
-                    if (bitcnt >= 8) {
-                        Serial.printf("%02x ", data);
-                        if (hex_cnt >= maxsize) {
-                            return hex_cnt;
+                    if (bitcnt >= 8) { // i.e. if byte complete
+                        Serial.printf("[%d:]%02x ", byte_cnt, data); // print the byte in hex (2 digits)
+                        if (byte_cnt >= maxsize) {
+                            Serial.printf("\r\nBuffer overflow, maxsize=%d\r\n. Printing partial rx only. ", maxsize);
+                            return byte_cnt;
                         }
-                        dataptr[hex_cnt] = data;
+                        dataptr[byte_cnt] = data;
                         data             = 0;
-                        hex_cnt++;
+                        byte_cnt++;
                         bitcnt = 0;
                     }
                 } else {
-                    Serial.printf("%d %d:%d,%d:%d ", hex_cnt, dataitem.level0, dataitem.duration0, dataitem.level1,
-                                  dataitem.duration1);
-                    return hex_cnt;
+                    Serial.printf("bytes rxd in pkt: %d", byte_cnt);
+                    return byte_cnt;
                 }
             }
-            dataitem.duration0 = item[cnt].duration1;
+            candidateBit.duration0 = item[cnt].duration1;
+            Serial.printf("symbols processed count %d, of %u\n", cnt, size);
         } while (cnt < size);
 
         Serial.println("END");
     }
-    return hex_cnt;
+    return byte_cnt;
 }
 
 
 void loop()
 {
-    int revicecnt = 0;
+    int recievecnt = 0;
 
     RingbufHandle_t rb = nullptr;
     rmt_get_ringbuf_handle(RMT_RX_CHANNEL, &rb);
@@ -151,25 +162,47 @@ void loop()
         rmt_item32_t* item = (rmt_item32_t*)xRingbufferReceive(rb, &rx_size, 500);
         if (item != nullptr) {
             if (rx_size != 0) {
-                uint8_t databuff[256];
-                Serial.printf("\r\nsize:%d\r\n", rx_size);
-                int size = parsedData(item, rx_size, databuff, 255);
-                if ((size >= 5) && (databuff[0] == 0xaa) && (databuff[1] == 0x55) && (databuff[2] == 0x01) &&
-                    (databuff[3] == 0x02) && (databuff[4] == 0x03)) {
-                    revicecnt++;
-                    Serial.printf("Revice %d\r\n", revicecnt);
-                    if (revicecnt == 4) {
-                        M5.Lcd.fillRect(0, 20, 320, 220, TFT_GREEN);
+                uint8_t MAXSIZE = 255;
+                uint8_t databuff[MAXSIZE+1] = {0};
+                rx_size = rx_size / sizeof(rmt_item32_t); // convert from bytes to number of RMT items
+                Serial.printf("\r\nlive buff size:%d RMT items\r\n", rx_size);
+                int size = parsedData(item, rx_size, databuff, MAXSIZE);
+                // HACK example currently validates against a specific pattern, but this should be replaced with a more robust validation method
+                
+                                // TODO validate expexted function 
+                bool dataMatchesExpected = true;
+                for (int i = 0; i < expected_data_len; i++) {
+                    if (databuff[i] != expected_data[i]) {
+                        Serial.printf("Data mismatch at index %d: expected 0x%02X, got 0x%02X\r\n", i, expected_data[i], databuff[i]);
+                        dataMatchesExpected = false;
                     }
                 }
+
+                if (dataMatchesExpected) {
+                    recievecnt++;
+                    Serial.printf("Data matches expected pattern. Recieved pkt #%d\r\n", recievecnt);
+                }
+                if (recievecnt == 4) {
+                    M5.Lcd.fillRect(0, 20, 320, 220, TFT_GREEN);
+                }
+
+                
+                // if ((size >= 5) && (databuff[0] == 0xaa) && (databuff[1] == 0x55) && (databuff[2] == 0x01) &&
+                //     (databuff[3] == 0x02) && (databuff[4] == 0x03)) { // TODO && 0x04
+                //     recievecnt++;
+                    
+                //     if (recievecnt == 4) {
+                //         M5.Lcd.fillRect(0, 20, 320, 220, TFT_GREEN);
+                //     }
+                // }
             }
             vRingbufferReturnItem(rb, (void*)item);
         } else {
-            if (revicecnt != 0) {
-                Serial.printf("Revice %d\r\n", revicecnt);
+            if (recievecnt != 0) {
+                Serial.printf("Recieve %d\r\n", recievecnt);
                 M5.Lcd.fillRect(0, 20, 320, 220, TFT_RED);
             }
-            revicecnt = 0;
+            recievecnt = 0;
         }
     }
     rmt_rx_stop(RMT_RX_CHANNEL);

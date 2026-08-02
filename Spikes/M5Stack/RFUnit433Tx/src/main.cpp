@@ -58,7 +58,10 @@ void initRMT()
 }
 
 
-uint8_t data[6] = {0xAA, 0x55, 0x01, 0x02, 0x03, 0x04};
+// test data will generate (2 + 6 * 8) = 50 RMT items to convey 6 bytes
+const uint8_t data_len = 6;
+uint8_t data[data_len] = {0xAA, 0x55, 0x01, 0x02, 0x03, 0x04};
+
 void send(uint8_t* buff, size_t size)
 {
     rmtbuff[0] = (rmt_item32_t){RMT_START_CODE0};
@@ -70,8 +73,10 @@ void send(uint8_t* buff, size_t size)
             mark >>= 1;
         }
     }
+    const uint32_t rmt_items = 2 + size * 8; // RMT protocol has 2 leading items (start codes) and then 8 items per byte of data
+    Serial.printf("Sending %d bytes and %u items\n", size, rmt_items);
     for (int i = 0; i < 8; i++) {
-        ESP_ERROR_CHECK(rmt_write_items(RMT_TX_CHANNEL, rmtbuff, 42, false));
+        ESP_ERROR_CHECK(rmt_write_items(RMT_TX_CHANNEL, rmtbuff, rmt_items, false));
         ESP_ERROR_CHECK(rmt_wait_tx_done(RMT_TX_CHANNEL, portMAX_DELAY));
     }
 }
@@ -112,7 +117,7 @@ void loop()
     m5::Touch_Class::touch_detail_t touch = CoreS3.Touch.getDetail();
 	if (touch.wasReleased()) {
         Serial.println("SEND");
-        send(data, 6);
+        send(data, data_len);
 	}
 
     delay(10);
