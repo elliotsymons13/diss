@@ -114,13 +114,18 @@ void setup()
 
 }
 
+uint32_t send_count = 0;
+uint8_t retries = 6;
 
 void loop()
 {
     m5::Touch_Class::touch_detail_t touch = CoreS3.Touch.getDetail();
 	if (touch.wasReleased()) {
-        Serial.println("SEND");
-        send(data, user_data_len, 12);
+        
+        uint32_t old_count = send_count;
+        send_count = send_count + retries;
+        Serial.printf("SENDING packets %d - %d \r\n", old_count, send_count);
+        send(data, user_data_len, retries);
         // send(invalid_data, invalid_user_data_len);
 	}
 
