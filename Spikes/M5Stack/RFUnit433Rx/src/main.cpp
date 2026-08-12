@@ -17,8 +17,6 @@
 #include <driver/rmt.h>
 #include "M5Unified.h"
 
-// TODO unused analysis
-
 // #define RMT_TX_CHANNEL  (RMT_CHANNEL_0)
 #define RMT_RX_CHANNEL  (RMT_CHANNEL_4)
 #define RTM_RX_GPIO_NUM (8) // modified for CoreS3
@@ -38,6 +36,8 @@ const uint16_t rx_buff_size = 2048*8;
 #define RMT_CODE_L      {348, 1, 642, 0}
 #define RMT_START_CODE0 {4868, 1, 2469, 0}
 #define RMT_START_CODE1 {1647, 1, 315, 0}
+
+RingbufHandle_t rb = nullptr;
 
 // XXX hardcoded!
 // examples for use, in reality calling library will define and pass in the data to be sent
@@ -114,8 +114,6 @@ int parsedData(rmt_item32_t* item, uint8_t* conveyed_size, size_t rx_size, uint8
             cnt++;
             candidateBit.duration1 = item[cnt].duration0;
             if (cnt > 1) {
-                // Serial.printf("%d:%d,%d:%d
-                // ",candidateBit.level0,candidateBit.duration0,candidateBit.level1,candidateBit.duration1);
                 if (((candidateBit.duration0 + candidateBit.duration1) < 1100) &&
                     ((candidateBit.duration0 + candidateBit.duration1) > 800)) {
                     data <<= 1;
@@ -156,12 +154,23 @@ int parsedData(rmt_item32_t* item, uint8_t* conveyed_size, size_t rx_size, uint8
     return byte_cnt;
 }
 
+bool validatedData(uint8_t conveyed_data_len, size_t parsed_size, uint8_t* databuff, size_t expected_data_len, uint8_t* expected_data) {
+    
+    if (conveyed_data_len != parsed_size) {
+        Serial.printf("Conveyed data length (%d) does not match parsed size (%d)\r\n", conveyed_data_len, parsed_size);
+        return false;
+    }
 
-void loop()
-{
-    int recievecnt = 0;
+    for (int i = 0; i < expected_data_len; i++) {
+        if (databuff[i] != expected_data[i]) {
+            Serial.printf("Data mismatch at index %d: expected 0x%02X, got 0x%02X\r\n", i, expected_data[i], databuff[i]);
+            return false;
+        }
+    }
+    return true;
+}
 
-    RingbufHandle_t rb = nullptr;
+void receiveValidateOnce() {
     rmt_get_ringbuf_handle(RMT_RX_CHANNEL, &rb);
     rmt_rx_start(RMT_RX_CHANNEL, true);
     while (rb) {
@@ -173,45 +182,25 @@ void loop()
                 uint8_t MAXSIZE = 255;
                 uint8_t databuff[MAXSIZE+1] = {0};
                 rx_size = rx_size / sizeof(rmt_item32_t); // convert from bytes to number of RMT items
-                Serial.printf("\r\nlive buff rx_size: %d RMT items\r\n", rx_size);
 
                 uint8_t conveyed_data_len = 0;
                 size_t parsed_size = parsedData(item, &conveyed_data_len, rx_size, databuff, MAXSIZE);
-                // HACK example currently validates against a specific pattern, but this should be replaced with a more robust validation method
-                
-                if (conveyed_data_len == parsed_size) {
-                    Serial.printf("Conveyed data length matches parsed size: %d bytes\r\n", parsed_size);
+                if (validatedData(conveyed_data_len, parsed_size, databuff, expected_data_len, expected_data)) {
+                    Serial.printf("Data has correct length, content, etc. as expected by caller.\r\n");
                 } else {
-                    Serial.printf("Conveyed data length (%d) does not match parsed size (%d)\r\n", conveyed_data_len, parsed_size);
+                    Serial.printf("INVALID DATA RECEIVED.\r\n");
                 }
-
-                // TODO validate expexted function 
-                bool dataMatchesExpected = true;
-                for (int i = 0; i < expected_data_len; i++) {
-                    if (databuff[i] != expected_data[i]) {
-                        // Serial.printf("Data mismatch at index %d: expected 0x%02X, got 0x%02X\r\n", i, expected_data[i], databuff[i]);
-                        dataMatchesExpected = false;
-                    }
-                }
-
-                if (dataMatchesExpected) {
-                    recievecnt++;
-                    Serial.printf("Data matches expected pattern. Recieved pkt #%d\r\n", recievecnt);
-                }
-                if (recievecnt == 4) {
-                    M5.Lcd.fillRect(0, 20, 320, 220, TFT_GREEN);
-                }
+                
             }
             vRingbufferReturnItem(rb, (void*)item);
-        } else {
-            if (recievecnt != 0) {
-                Serial.printf("Recieve count: %d\r\n", recievecnt);
-                M5.Lcd.fillRect(0, 20, 320, 220, TFT_RED);
-            }
-            recievecnt = 0;
         }
     }
     rmt_rx_stop(RMT_RX_CHANNEL);
+}
+
+void loop()
+{
+    receiveValidateOnce();
 
     delay(10);
     M5.update();
