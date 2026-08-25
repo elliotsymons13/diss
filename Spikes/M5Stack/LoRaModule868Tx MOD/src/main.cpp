@@ -55,8 +55,11 @@ void loop() {
 
     // send packet
     LoRa.beginPacket();
-    LoRa.print("hello ");
-    LoRa.print(counter);
+    // LoRa.print("hello ");
+    // LoRa.print(counter);
+    uint8_t message[] = "hello ";
+    LoRa.write(message, sizeof(message));
+    LoRa.write((uint8_t*)&counter, sizeof(counter));
     LoRa.endPacket();
 
     counter++;
