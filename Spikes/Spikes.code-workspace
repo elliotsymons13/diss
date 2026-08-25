@@ -23,6 +23,18 @@
 		{
 			"name": "251218-175841-UserInterface-m5stack-cores3",
 			"path": "M5Stack/251218-175841-UserInterface-m5stack-cores3"
+		},
+		{
+			"path": "M5Stack/RFUnit433Rx MOD"
+		},
+		{
+			"path": "M5Stack/RFUnit433Tx MOD"
+		},
+		{
+			"path": "M5Stack/LoRaModule868Rx MOD"
+		},
+		{
+			"path": "M5Stack/LoRaModule868Tx MOD"
 		}
 	],
 	"settings": {}
