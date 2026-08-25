@@ -35,6 +35,9 @@
 		},
 		{
 			"path": "M5Stack/LoRaModule868Tx MOD"
+		},
+		{
+			"path": "../Production"
 		}
 	],
 	"settings": {}
