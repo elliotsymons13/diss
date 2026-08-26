@@ -18,7 +18,7 @@ bool LoRa868::begin() { // TODO some design pattern to prevent these being calle
         Serial.printf("LoRa init still failing after maximum attempts (%d).", MAX_LORA_INIT_ATTEMPTS);
         return false;
     }
-    Serial.printf("LoRa init success on attempt %d. ", attempts);
+    Serial.printf("LoRa init success on attempt %d\n. ", attempts);
     return true;
 }
 

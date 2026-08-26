@@ -25,7 +25,7 @@ void setup() {
     lora.post_config();
 
     M5_SX127X lora_impl = lora.unwrap();
-    // lora_impl.setFrequency(433E6); // TODO change frequency to 433 MHz for testing with other devices
+    lora_impl.setFrequency(433E6); // TODO change frequency to 433 MHz for testing with other devices
 
 }
 int counter = 0;
