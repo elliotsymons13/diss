@@ -25,7 +25,7 @@ void setup() {
     lora.post_config();
 
     M5_SX127X lora_impl = lora.unwrap();
-    lora_impl.setFrequency(433E6); // TODO change frequency to 433 MHz for testing with other devices
+    // lora_impl.setFrequency(433E6); 
 
 }
 int counter = 0;
@@ -36,13 +36,15 @@ void loop() {
     Serial.println(counter);
 
     // send packet
-    LoRa.beginPacket();
-    uint8_t message[] = "hello ";
-    LoRa.write(message, sizeof(message) - 1); // account for null terminator in size
+    char message[7] = "hello ";
     char counter_str[4]; // max uint8_t is 255, so 3 bytes needed for string rep, plus one for null terminator
     size_t chars_used = sprintf(counter_str, "%d", counter);
-    LoRa.write((const uint8_t*)&counter_str, chars_used);
-    LoRa.endPacket();
+
+    uint8_t msg_len = 7 + chars_used;
+    char full_message[msg_len];
+    snprintf(full_message, sizeof(full_message), "hello %s", counter_str);
+    Serial.printf("About to send  '%s' with length %d\n", full_message, msg_len);
+    lora.send((const uint8_t*)full_message, msg_len-1); // -1 to exclude null terminator
 
     counter++;
 

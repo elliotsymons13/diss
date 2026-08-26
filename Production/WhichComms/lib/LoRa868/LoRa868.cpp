@@ -29,6 +29,14 @@ bool LoRa868::post_config() {
     return true;
 }
 
+bool LoRa868::send(const uint8_t* data, size_t size) {
+    LoRa.beginPacket();
+    LoRa.write(data, size);
+    LoRa.endPacket();
+    return true;
+}
+
+
 M5_SX127X LoRa868::unwrap() {
     return LoRa;
 }

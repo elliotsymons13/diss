@@ -34,6 +34,8 @@ class LoRa868 : public OneComms {
         virtual bool pre_config() override;
         virtual bool begin() override;
         virtual bool post_config() override;
+        virtual bool send(const uint8_t* data, size_t size) override;
+
         M5_SX127X unwrap();
 };
 
