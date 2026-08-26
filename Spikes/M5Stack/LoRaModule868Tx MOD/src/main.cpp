@@ -22,7 +22,7 @@
 #define LORA_BW       125E3
 #define LORA_TX_POWER 17
 
-int counter = 0;
+uint8_t counter = 0;
 
 void setup() {
     Serial.begin(115200);
@@ -55,11 +55,11 @@ void loop() {
 
     // send packet
     LoRa.beginPacket();
-    // LoRa.print("hello ");
-    // LoRa.print(counter);
     uint8_t message[] = "hello ";
-    LoRa.write(message, sizeof(message));
-    LoRa.write((uint8_t*)&counter, sizeof(counter));
+    LoRa.write(message, sizeof(message) - 1); // account for null terminator in size
+    char counter_str[4]; // max uint8_t is 255, so 3 bytes needed for string rep, plus one for null terminator
+    size_t chars_used = sprintf(counter_str, "%d", counter);
+    LoRa.write((const uint8_t*)&counter_str, chars_used);
     LoRa.endPacket();
 
     counter++;

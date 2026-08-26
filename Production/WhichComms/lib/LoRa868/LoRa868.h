@@ -5,7 +5,7 @@
 #include <Arduino.h>
 #include <SPI.h>
 #include <OneComms.h>
-// #include "M5_SX127X.h"
+#include "M5_SX127X.h"
 
 // Module Connect Pins Config
 // for CoreS3
@@ -25,11 +25,16 @@
 #define LORA_BW       125E3
 #define LORA_TX_POWER 17
 
+#define MAX_LORA_INIT_ATTEMPTS 5
+#define LORA_INIT_ATTEMPT_DELAY_MS 1000
+
 class LoRa868 : public OneComms {
     // no specifics in header beyond OneComms
     public:
-        void begin() override;
-        void somethingLoRaSpecific();
+        virtual bool pre_config() override;
+        virtual bool begin() override;
+        virtual bool post_config() override;
+        M5_SX127X unwrap();
 };
 
 #endif // LORA868_H
