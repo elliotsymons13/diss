@@ -1,38 +1,18 @@
-#include <Arduino.h>
-// #include <M5CoreS3.h>
-// #include "M5Unified.h"
 
-// #include <OneComms.h> //included incirectly by LoRa868.h etc. but is needed here so should specify explitly 
-#include <LoRa868.h>
+
+#include <WhichCommsCommon.h>
+
 LoRa868 lora;
 
-void await_serial() {
-    Serial.begin(115200);
-    while (!Serial) {
-        // wait for Serial to become active
-        delay(100);
-    }   
-    delay(500);
-    Serial.println("Serial connected. ");
-
-}
-
 void setup() {
-    await_serial();
-
-    lora.pre_config();
-    lora.begin();
-    lora.post_config();
-
-    M5_SX127X lora_impl = lora.unwrap();
-    // lora_impl.setFrequency(433E6); 
-
+    setup_common(&lora);
 }
+
 int counter = 0;
 void loop() {
     // put your main code here, to run repeatedly:
 
-    Serial.print("Sending packet: ");
+    Serial.print("MASTER Sending packet: ");
     Serial.println(counter);
 
     // send packet

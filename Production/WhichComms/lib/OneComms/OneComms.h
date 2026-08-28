@@ -10,7 +10,8 @@ class OneComms {
         virtual bool begin() = 0;
         virtual bool post_config() = 0;
         virtual bool send(const uint8_t* data, size_t size) = 0;
-        // virtual bool receive(const uint8_t* buffer, size_t size) = 0;
+        virtual bool receiveOne(uint8_t* buffer, size_t size) = 0;
+        virtual bool receiveOne(uint8_t* buffer, size_t size, uint32_t timeout_ms) = 0;
 };
 
 #endif // ONECOMMS_H

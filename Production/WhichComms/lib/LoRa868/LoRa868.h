@@ -27,6 +27,7 @@
 
 #define MAX_LORA_INIT_ATTEMPTS 5
 #define LORA_INIT_ATTEMPT_DELAY_MS 1000
+#define RX_WAIT_INTERVAL_MS 100
 
 class LoRa868 : public OneComms {
     // no specifics in header beyond OneComms
@@ -35,7 +36,10 @@ class LoRa868 : public OneComms {
         virtual bool begin() override;
         virtual bool post_config() override;
         virtual bool send(const uint8_t* data, size_t size) override;
+        virtual bool receiveOne(uint8_t* buffer, size_t size) override;
+        virtual bool receiveOne(uint8_t* buffer, size_t size, uint32_t timeout_ms) override;
 
+        // TODO protected?
         M5_SX127X unwrap();
 };
 
