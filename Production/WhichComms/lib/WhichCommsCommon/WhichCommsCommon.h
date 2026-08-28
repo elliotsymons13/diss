@@ -6,6 +6,7 @@
 // #include <M5CoreS3.h>
 // #include "M5Unified.h"
 
+#include <EverywhereCommon.h>
 // #include <OneComms.h> //included incirectly by LoRa868.h etc. but is needed here so should specify explitly 
 #include <LoRa868.h>
 

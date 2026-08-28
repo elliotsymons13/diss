@@ -65,13 +65,11 @@ bool _tryRx(uint8_t* buffer, size_t size) {
 }
 
 // TODO try porting impl to OneComms.cpp, as common
-bool LoRa868::receiveOne(uint8_t* buffer, size_t size) {
+err LoRa868::receiveOne(uint8_t* buffer, size_t size) {
     return receiveOne(buffer, size, 0);
 }
 
-bool LoRa868::receiveOne(uint8_t* buffer, size_t size, uint32_t timeout_ms) {
-    // TODO error codes -1 for buffer too small, -2 for timeout
-
+err LoRa868::receiveOne(uint8_t* buffer, size_t size, uint32_t timeout_ms) {
     // START HERE
     // TODO actual impl, including 0 triggered blocking case, and timeout case
 
@@ -82,19 +80,18 @@ bool LoRa868::receiveOne(uint8_t* buffer, size_t size, uint32_t timeout_ms) {
             // wait for packet
             delay(RX_WAIT_INTERVAL_MS);
         }
-        return true;
+        return err::none;
     }
     
     // timout case 
     unsigned long startMillis = millis();
     while (millis() - startMillis < timeout_ms) {
         if (_tryRx(buffer, size)) {
-            return true;
+            return err::none;
         }
         delay(RX_WAIT_INTERVAL_MS);
     }
-    Serial.println("Timeout waiting for packet.");
-    return false;
+    return err::timeout_expired;
 }
 
 
