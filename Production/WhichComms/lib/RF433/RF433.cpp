@@ -111,11 +111,15 @@ bool RF433::send(const uint8_t* data, size_t buffer_size) {
  */
 size_t _parseData(rmt_item32_t* item, size_t* conveyed_size, size_t rx_size, uint8_t* dataptr, size_t maxsize)
 {
-    if((item == nullptr)||(rx_size < 4))return 0;
+    if((item == nullptr)||(rx_size < 4)) {
+        Serial.println("Invalid input to _parseData: either item is nullptr or rx_size < 4.");
+        return 0;
+    }
     unsigned int cnt        = 0;
     uint8_t data   = 0;
     uint8_t bitcnt = 0, byte_cnt = 0;
     if (((item[0].level0 == 0)) && (item[0].duration0 > 2300) && (item[0].duration0 < 2600)) {
+        Serial.println("Start code detected.");
         // dataptr = (uint8_t*)malloc(rx_size * sizeof(uint8_t));
         rmt_item32_t candidateBit;
         candidateBit.level0    = 1;
@@ -131,23 +135,23 @@ size_t _parseData(rmt_item32_t* item, size_t* conveyed_size, size_t rx_size, uin
                     if (candidateBit.duration0 > candidateBit.duration1) {
                         data += 1;
                     }
-
                     bitcnt++;
                     if (bitcnt >= 8) { // i.e. if byte complete
                         // Serial.printf("[%d:]%02x ", byte_cnt, data); // print the byte in hex (2 digits)
                         if (byte_cnt >= maxsize) {
-                            // Serial.printf("\r\nBuffer overflow, maxsize=%d\r\n. Printing partial rx only. ", maxsize);
+                            Serial.printf("\r\nBuffer overflow, maxsize=%d\r\n. Printing partial rx only. ", maxsize);
                             *conveyed_size = dataptr[0];
                             // Serial.printf("conveyed size: %d\r\n", *conveyed_size);
                             return byte_cnt;
                         }
+                        Serial.printf("Storing byte %d: 0x%02x\r\n", byte_cnt, data);
                         dataptr[byte_cnt] = data;
                         data             = 0;
                         byte_cnt++;
                         bitcnt = 0;
                     }
                 } else {
-                    // Serial.printf("bytes rxd in pkt: %d", byte_cnt);
+                    Serial.printf("bytes rxd in pkt: %d", byte_cnt);
                     *conveyed_size = dataptr[0];
                     // Serial.printf("conveyed size: %d\r\n", *conveyed_size);
                     return byte_cnt;
@@ -161,7 +165,7 @@ size_t _parseData(rmt_item32_t* item, size_t* conveyed_size, size_t rx_size, uin
     }
     // record conveyed size (first byte)
     *conveyed_size = dataptr[0];
-    // Serial.printf("conveyed size: %d\r\n", *conveyed_size);
+    Serial.printf("Final conveyed size: %d\r\n", *conveyed_size);
     return byte_cnt;
 }
 
@@ -205,15 +209,17 @@ err RF433::_tryRx(uint8_t* buffer, size_t buffer_size, size_t* rxd_size, uint32_
         // Serial.printf("---------\r\n");
         if (item == nullptr) {
             Serial.println("Nothing in ring buffer. ");
-            continue; 
+            break; // TODO continue better  
         }
         if (rx_size != 0) {
 
             rx_size = rx_size / sizeof(rmt_item32_t); // convert from bytes to number of RMT items
 
             parsed_size = _parseData(item, &conveyed_data_len, rx_size, databuff, MAXSIZE);
-            if (packetComplete(conveyed_data_len, parsed_size)) {
-                Serial.printf("PACKET COMPLETE - Data has length matching that self-described in packet header.\r\n");
+            // HACK
+            Serial.printf("XXXX Rx size: %d, Parsed size: %d, Conveyed data length: %d\r\n", rx_size, parsed_size, conveyed_data_len);
+            if (parsed_size > 0 && packetComplete(conveyed_data_len, parsed_size)) {
+                Serial.printf("PACKET COMPLETE (len %d) - Data has length matching that self-described in packet header.\r\n", parsed_size);
                 if (parsed_size > buffer_size) {
                     Serial.printf("RX BUFFER OVERFLOW - parsed size %d exceeds buffer size %d\r\n", parsed_size, buffer_size);
                     result = err::buffer_overflow;
