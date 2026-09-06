@@ -21,8 +21,8 @@
 
 #define RMT_TX_CHANNEL  (RMT_CHANNEL_0)
 // #define RMT_RX_CHANNEL  (RMT_CHANNEL_4)
-#define RTM_TX_GPIO_NUM (9) // modified for CoreS3 // FIXME clashes with LoRa433 pin
-#define RTM_BLOCK_NUM   (1)
+#define RMT_TX_GPIO_NUM (9) // modified for CoreS3 // FIXME clashes with LoRa433 pin
+#define RMT_BLOCK_NUM   (1)
 #define RMT_CLK_DIV     (80) /*!< RMT counter clock divider */
 #define RMT_1US_TICKS   (80000000 / RMT_CLK_DIV / 1000000)
 #define RMT_1MS_TICKS   (RMT_1US_TICKS * 1000)
@@ -44,8 +44,8 @@ void initRMT()
     rmt_config_t txconfig = {};
     txconfig.rmt_mode                 = RMT_MODE_TX;
     txconfig.channel                  = RMT_TX_CHANNEL;
-    txconfig.gpio_num                 = gpio_num_t(RTM_TX_GPIO_NUM);
-    txconfig.mem_block_num            = RTM_BLOCK_NUM;
+    txconfig.gpio_num                 = gpio_num_t(RMT_TX_GPIO_NUM);
+    txconfig.mem_block_num            = RMT_BLOCK_NUM;
     txconfig.tx_config.loop_en        = false;
     txconfig.tx_config.carrier_en     = false;
     txconfig.tx_config.idle_output_en = true;
@@ -103,7 +103,7 @@ void setup()
     M5.Lcd.fillRect(0, 0, 320, 20, M5.Lcd.color565(38, 38, 38));
     M5.Lcd.setTextColor(TFT_WHITE);
     M5.Lcd.drawString("RF433 Tx Spike", 20, 2, 2);
-    pinMode(RTM_TX_GPIO_NUM, OUTPUT);
+    pinMode(RMT_TX_GPIO_NUM, OUTPUT);
     Serial.println("Pins configured. Initializing RMT...");
     initRMT();
     Serial.println("initRMT done");

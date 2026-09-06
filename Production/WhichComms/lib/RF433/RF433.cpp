@@ -4,14 +4,14 @@ const uint16_t RX_BUFF_SIZE = 2048*8;
 rmt_item32_t rmtbuff[RX_BUFF_SIZE];
 
 bool RF433::pre_config() {
-    pinMode(RTM_TX_GPIO_NUM, OUTPUT);
-    pinMode(RTM_RX_GPIO_NUM, INPUT);
+    pinMode(RMT_TX_GPIO_NUM, OUTPUT);
+    pinMode(RMT_RX_GPIO_NUM, INPUT);
 
     this->txconfig = {};
     this->txconfig.rmt_mode                 = RMT_MODE_TX;
     this->txconfig.channel                  = RMT_TX_CHANNEL;
-    this->txconfig.gpio_num                 = gpio_num_t(RTM_TX_GPIO_NUM);
-    this->txconfig.mem_block_num            = RTM_BLOCK_NUM;
+    this->txconfig.gpio_num                 = gpio_num_t(RMT_TX_GPIO_NUM);
+    this->txconfig.mem_block_num            = RMT_BLOCK_NUM;
     this->txconfig.tx_config.loop_en        = false;
     this->txconfig.tx_config.carrier_en     = false;
     this->txconfig.tx_config.idle_output_en = true;
@@ -21,8 +21,8 @@ bool RF433::pre_config() {
     this->rxconfig = {}; 
     this->rxconfig.rmt_mode                      = RMT_MODE_RX;
     this->rxconfig.channel                       = RMT_RX_CHANNEL;
-    this->rxconfig.gpio_num                      = gpio_num_t(RTM_RX_GPIO_NUM);
-    this->rxconfig.mem_block_num                 = RTM_BLOCK_NUM; // was hardcoded 6;
+    this->rxconfig.gpio_num                      = gpio_num_t(RMT_RX_GPIO_NUM);
+    this->rxconfig.mem_block_num                 = RMT_BLOCK_NUM; // was hardcoded 6;
     this->rxconfig.clk_div                       = RMT_CLK_DIV;
     this->rxconfig.rx_config.filter_en           = true;
     this->rxconfig.rx_config.filter_ticks_thresh = 200 * RMT_1US_TICKS;
@@ -43,13 +43,12 @@ bool RF433::begin_tx_only_mode() {
         return true; // already in TX mode
     }
     
-    // if (!this->txInstalled) {
+    if (!this->txInstalled) {
         rmt_channel_t tx_channel = this->txconfig.channel;
-        ESP_ERROR_CHECK(rmt_driver_uninstall(tx_channel));
         ESP_ERROR_CHECK(rmt_config(&this->txconfig));
         ESP_ERROR_CHECK(rmt_driver_install(tx_channel, 0, 0));
-        // this->txInstalled = true;
-        // }
+        this->txInstalled = true;
+    }
     this->mode = comm::mode_tx;
     return true;
 }
@@ -61,9 +60,8 @@ bool RF433::begin_rx_only_mode() {
     }
     this->mode = comm::mode_rx;
 
-    // if (!this->rxInstalled) {
+    if (!this->rxInstalled) {
         rmt_channel_t rx_channel = this->rxconfig.channel;
-        ESP_ERROR_CHECK(rmt_driver_uninstall(rx_channel));
         ESP_ERROR_CHECK(rmt_config(&this->rxconfig));
         ESP_ERROR_CHECK(rmt_driver_install(rx_channel, RX_BUFF_SIZE, 0));
         esp_err_t err = rmt_get_ringbuf_handle(rx_channel, &this->rx_ring_buff);
@@ -72,23 +70,21 @@ bool RF433::begin_rx_only_mode() {
             return false;
         }
         this->rxInstalled = true;
-    // }
+    }
     return true;
 }
 
 bool RF433::post_config() {
-    // TODO
     return true;
 }
 
 bool RF433::send(const uint8_t* data, size_t buffer_size) {
 
-    // TODO return codes
-    // TODO bounds checks for rmt buffer sizes, etc. 
+    // TODO bounds checks for rmt buffer sizes, etc., currently just have a huge buffer..
 
     this->begin_tx_only_mode();
     
-    // memset(rmtbuff, 0, sizeof(rmtbuff)); // TODO zero the rmtbuff
+    memset(rmtbuff, 0, sizeof(rmtbuff)); // zero the rmtbuff
     rmtbuff[0] = (rmt_item32_t){RMT_START_CODE0};
     rmtbuff[1] = (rmt_item32_t){RMT_START_CODE1};
     for (int i = 0; i < buffer_size; i++) {
@@ -100,10 +96,9 @@ bool RF433::send(const uint8_t* data, size_t buffer_size) {
     }
     const uint32_t rmt_items = 2 + buffer_size * 8; // RMT protocol has 2 leading items (start codes) and then 8 items per byte of data
     Serial.printf("Sending packet -  %d bytes encoded in %u RMT items\n", buffer_size, rmt_items);
-    // for (int i = 0; i < tx_repeats; i++) {
-        ESP_ERROR_CHECK(rmt_write_items(RMT_TX_CHANNEL, rmtbuff, rmt_items, false));
-        ESP_ERROR_CHECK(rmt_wait_tx_done(RMT_TX_CHANNEL, portMAX_DELAY));
-    // }
+    ESP_ERROR_CHECK(rmt_write_items(RMT_TX_CHANNEL, rmtbuff, rmt_items, false));
+    ESP_ERROR_CHECK(rmt_wait_tx_done(RMT_TX_CHANNEL, portMAX_DELAY));
+
     return true;
 }
 
@@ -184,12 +179,12 @@ void _rxCleanup() {
     Serial.println("RMT RX stopped.");
 }
 
-bool RF433::_tryRx(uint8_t* buffer, size_t buffer_size, size_t* rxd_size, uint32_t timeout_ms) {
-    Serial.println("--_tryRx()--");
+err RF433::_tryRx(uint8_t* buffer, size_t buffer_size, size_t* rxd_size, uint32_t timeout_ms) {
+
 
     uint8_t MAXSIZE = 255;
     uint8_t databuff[MAXSIZE+1] = {0};
-    bool success = true;
+    err result = err::none;
 
     this->begin_rx_only_mode();
     rmt_rx_start(RMT_RX_CHANNEL, true);
@@ -201,12 +196,11 @@ bool RF433::_tryRx(uint8_t* buffer, size_t buffer_size, size_t* rxd_size, uint32
     while (conveyed_data_len != parsed_size) {
         if ((millis() - start_time >= rx_timeout)) {
             Serial.println("RX TIMEOUT - FAILSAFE, breaking out of RX loop.");
-            success = false; // TODO encode failure due to timeout
+            result = err::timeout_expired; 
             break;
         }
 
         size_t rx_size     = 0;
-        // TODO use this libs timeout - ticks convert
         rmt_item32_t* item = (rmt_item32_t*)xRingbufferReceive(this->rx_ring_buff, &rx_size, 500);
         // Serial.printf("---------\r\n");
         if (item == nullptr) {
@@ -222,9 +216,7 @@ bool RF433::_tryRx(uint8_t* buffer, size_t buffer_size, size_t* rxd_size, uint32
                 Serial.printf("PACKET COMPLETE - Data has length matching that self-described in packet header.\r\n");
                 if (parsed_size > buffer_size) {
                     Serial.printf("RX BUFFER OVERFLOW - parsed size %d exceeds buffer size %d\r\n", parsed_size, buffer_size);
-                    // vRingbufferReturnItem(this->rx_ring_buff, (void*)item);
-                    // return false; // TODO
-                    success = false; // TODO encode failure due to buffer overflow
+                    result = err::buffer_overflow;
                     break;
                 }
             } else {
@@ -240,14 +232,14 @@ bool RF433::_tryRx(uint8_t* buffer, size_t buffer_size, size_t* rxd_size, uint32
     
     rmt_rx_stop(RMT_RX_CHANNEL);
     Serial.println("RMT RX stopped.");
-    if (success) {
+    if (result == err::none) {
         Serial.println("RX SUCCESS");
         memcpy(buffer, databuff, parsed_size);
         *rxd_size = parsed_size;
-        return true;
+        return err::none;
     } else {
         Serial.println("RX FAILURE");
-        return false;
+        return result;
     }
 }
 
@@ -255,18 +247,10 @@ bool RF433::_tryRx(uint8_t* buffer, size_t buffer_size, size_t* rxd_size, uint32
 err RF433::receiveOne(uint8_t* buffer, size_t buffer_size, size_t* rxd_size) {
     return receiveOne(buffer, buffer_size, rxd_size, 0);
 }
-err RF433::receiveOne(uint8_t* buffer, size_t buffer_size, size_t* rxd_size, uint32_t timeout_ms) {
-    // HACK rmt_rx_start(RMT_RX_CHANNEL, true);
-    
+err RF433::receiveOne(uint8_t* buffer, size_t buffer_size, size_t* rxd_size, uint32_t timeout_ms) {    
     // for RF433 library, the example code uses a blocking receive approach
     // therefore this function delegates timeout handling to that modified code
 
-    bool success = _tryRx(buffer, buffer_size, rxd_size, timeout_ms);
-    if (success) {
-        return err::none;
-    } else {
-        // TODO is an assumption, could be another type of error
-        // TODO do error returns from _tryRx
-        return err::timeout_expired;
-    }
+    return _tryRx(buffer, buffer_size, rxd_size, timeout_ms);
+    
 }

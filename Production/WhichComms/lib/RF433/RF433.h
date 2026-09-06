@@ -24,9 +24,9 @@
 
 #define RMT_TX_CHANNEL  (RMT_CHANNEL_0)
 #define RMT_RX_CHANNEL  (RMT_CHANNEL_4)
-#define RTM_RX_GPIO_NUM (8)// (18) for port C, or (8) for port B // modified for CoreS3 // FIXME RMT typos
-#define RTM_TX_GPIO_NUM (9)// (17) for port C, or (9) for port B // modified for CoreS3 // FIXME clashes with LoRa433 pin
-#define RTM_BLOCK_NUM   (1)
+#define RMT_RX_GPIO_NUM (8)// (18) for port C, or (8) for port B // modified for CoreS3 // FIXME RMT typos
+#define RMT_TX_GPIO_NUM (9)// (17) for port C, or (9) for port B // modified for CoreS3 // FIXME clashes with LoRa433 pin
+#define RMT_BLOCK_NUM   (1)
 #define RMT_CLK_DIV     (80) /*!< RMT counter clock divider */
 #define RMT_1US_TICKS   (80000000 / RMT_CLK_DIV / 1000000)
 #define RMT_1MS_TICKS   (RMT_1US_TICKS * 1000)
@@ -57,10 +57,10 @@ class RF433 : public OneComms {
     private:
         RingbufHandle_t rx_ring_buff = nullptr;
         rmt_config_t txconfig = {};
-        // bool txInstalled = false;
+        bool txInstalled = false;
         bool rxInstalled = false;
         rmt_config_t rxconfig = {};
-        bool _tryRx(uint8_t* buffer, size_t buffer_size, size_t* rxd_size, uint32_t timeout_ms);
+        err _tryRx(uint8_t* buffer, size_t buffer_size, size_t* rxd_size, uint32_t timeout_ms);
 };
 
 #endif // RF433_H

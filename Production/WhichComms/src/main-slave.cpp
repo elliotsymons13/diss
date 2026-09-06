@@ -49,19 +49,23 @@ void loop() {
     }
 #else
     // RF433 test case
-    uint8_t buffer[256]; // HACK len arb
+    uint8_t buffer[256]; // arbitrary length, but library will handle any buffer overflow internally
     Serial.print("SLAVE Awaiting RF433 packet (timeout): ");
     while (true) {
         size_t rxd_size = 0;
         switch (rf433.receiveOne((uint8_t*)buffer, sizeof(buffer), &rxd_size, 5000)) {
             case err::none: // packet rx'd successfully 
-                Serial.printf("Packet received (%d bytes)\r\n", rxd_size);
+                Serial.printf("RF433 Packet received (%d bytes)\r\n", rxd_size);
                 break;
             case err::timeout_expired:
-                Serial.println("Nothing received within 5s timeout. Could do other things now, but this example will just loop and try again. "); // nothing rx'd
+                Serial.println("Nothing RF433 received within 5s timeout. "); 
+                break;
+            case err::buffer_overflow:
+                Serial.println("Buffer overflow occurred while receiving RF433 packet.");
                 break;
         }
         delay(100); // HACK arb delay
+        // TODO Could do other things now, but this example will just loop and try again.
     }
 #endif // USE_LORA
 }

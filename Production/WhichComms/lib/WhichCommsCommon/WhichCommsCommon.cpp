@@ -2,7 +2,7 @@
 
 
 void await_serial() {
-    Serial.begin(115200); // TODO when I introduce M5.begin(), will need to deconflict ref https://forum.arduino.cc/t/m5stack-serial-begin-9600-breaker-serial/977695/7
+    Serial.begin(115200); // TODO when I introduce M5.begin(), may need to deconflict ref https://forum.arduino.cc/t/m5stack-serial-begin-9600-breaker-serial/977695/7
     #ifdef DEBUG_MODE
     while (!Serial.available()) {
         // wait for Serial to become active, and any input to be made e.g. random key press in debug monitor
@@ -23,7 +23,6 @@ void block_forever() {
     }
 }
 
-// TODO setup_common could be a template function, iterating over all Comms types, calling same setup funcs
 void setup_common_lora868(LoRa868* lora) {
     await_serial();
 

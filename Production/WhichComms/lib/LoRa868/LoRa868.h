@@ -42,7 +42,7 @@ class LoRa868 : public OneComms {
         virtual err receiveOne(uint8_t* buffer, size_t buffer_size, size_t* rxd_size) override;
         virtual err receiveOne(uint8_t* buffer, size_t buffer_size, size_t* rxd_size, uint32_t timeout_ms) override;
 
-        // TODO protected?
+        // provided so advanced WhichComms users can configure library-specific settings directly
         M5_SX127X unwrap();
 };
 

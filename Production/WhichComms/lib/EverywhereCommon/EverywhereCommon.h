@@ -4,6 +4,7 @@
 enum class err {
     none,
     timeout_expired, 
+    buffer_overflow
 };
 
 // TODO move to lower in include heirarchy - should not be needed by library users, abstracted away into internals?

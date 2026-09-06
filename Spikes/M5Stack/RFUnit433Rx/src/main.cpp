@@ -19,8 +19,8 @@
 
 // #define RMT_TX_CHANNEL  (RMT_CHANNEL_0)
 #define RMT_RX_CHANNEL  (RMT_CHANNEL_4)
-#define RTM_RX_GPIO_NUM (8) // modified for CoreS3
-#define RTM_BLOCK_NUM   (1)
+#define RMT_RX_GPIO_NUM (8) // modified for CoreS3
+#define RMT_BLOCK_NUM   (1)
 #define RMT_CLK_DIV     (80) /*!< RMT counter clock divider */
 #define RMT_1US_TICKS   (80000000 / RMT_CLK_DIV / 1000000)
 #define RMT_1MS_TICKS   (RMT_1US_TICKS * 1000)
@@ -48,8 +48,8 @@ void initRMT()
     rmt_config_t rxconfig = {};
     rxconfig.rmt_mode                      = RMT_MODE_RX;
     rxconfig.channel                       = RMT_RX_CHANNEL;
-    rxconfig.gpio_num                      = gpio_num_t(RTM_RX_GPIO_NUM);
-    rxconfig.mem_block_num                 = RTM_BLOCK_NUM; // was hardcoded 6;
+    rxconfig.gpio_num                      = gpio_num_t(RMT_RX_GPIO_NUM);
+    rxconfig.mem_block_num                 = RMT_BLOCK_NUM; // was hardcoded 6;
     rxconfig.clk_div                       = RMT_CLK_DIV;          // 时钟分频
     rxconfig.rx_config.filter_en           = true;                 // 开启滤波器
     rxconfig.rx_config.filter_ticks_thresh = 200 * RMT_1US_TICKS;  // 滤波信号宽度100*1M = 100us
@@ -76,7 +76,7 @@ void setup()
     M5.Lcd.fillRect(0, 0, 320, 20, M5.Lcd.color565(38, 38, 38));
     M5.Lcd.setTextColor(TFT_WHITE);
     M5.Lcd.drawString("RF433 Rx Spike", 20, 2, 2);
-    pinMode(RTM_RX_GPIO_NUM, INPUT);
+    pinMode(RMT_RX_GPIO_NUM, INPUT);
     // Serial.println("Pins configured. Initializing RMT...");
     initRMT();
     // Serial.println("initRMT done");
