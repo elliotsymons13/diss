@@ -185,49 +185,8 @@ void _rxCleanup() {
 }
 
 bool RF433::_tryRx(uint8_t* buffer, size_t buffer_size, size_t* rxd_size, uint32_t timeout_ms) {
-    // this->begin_rx_only_mode();
+    Serial.println("--_tryRx()--");
 
-    // rmt_rx_start(RMT_RX_CHANNEL, true);
-    // unsigned long start_time = millis();
-    // unsigned long rx_timeout = 3000;
-
-    // while (true) {
-    //     if ((millis() - start_time >= rx_timeout)) {
-    //         Serial.println("RX TIMEOUT 2 - FAILSAFE, should not occur in normal operation");
-    //         break;
-    //     }
-
-    //     size_t rx_size     = 0;
-    //     rmt_item32_t* item = (rmt_item32_t*)xRingbufferReceive(this->rx_ring_buff, &rx_size, 500);
-    //     // Serial.printf("---------\r\n");
-    //     if (item == nullptr) {
-    //         Serial.println("RX TIMEOUT 1");
-    //         break; // timeout occurred, exit the loop
-    //     }
-    //     if (rx_size != 0) {
-    //         uint8_t MAXSIZE = 255;
-    //         uint8_t databuff[MAXSIZE+1] = {0};
-    //         rx_size = rx_size / sizeof(rmt_item32_t); // convert from bytes to number of RMT items
-
-    //         size_t conveyed_data_len = 0;
-    //         size_t parsed_size = _parseData(item, &conveyed_data_len, rx_size, databuff, MAXSIZE);
-    //         if (packetComplete(conveyed_data_len, parsed_size)) {
-    //             Serial.printf("PACKET COMPLETE - Data has length matching that self-described in packet header.\r\n");
-    //             // TODO copy to buff
-    //         } else {
-    //             Serial.printf("INVALID DATA RECEIVED - too short.\r\n");
-    //         }
-            
-    //     }
-    //     vRingbufferReturnItem(this->rx_ring_buff, (void*)item);
-
-    // }
-    // rmt_rx_stop(RMT_RX_CHANNEL);
-    // Serial.println("RMT RX stopped.");
-
-
-    // TODO cleanup func locally ?
-    // TODO refactor to go style approach, non-working version commented at bottom, once this version tested
     uint8_t MAXSIZE = 255;
     uint8_t databuff[MAXSIZE+1] = {0};
     bool success = true;
@@ -235,23 +194,24 @@ bool RF433::_tryRx(uint8_t* buffer, size_t buffer_size, size_t* rxd_size, uint32
     this->begin_rx_only_mode();
     rmt_rx_start(RMT_RX_CHANNEL, true);
 
-    size_t conveyed_data_len = UINT_MAX; // HACK to ensure nonequal on first iteration 
+    size_t conveyed_data_len = UINT_MAX; //  ensure nonequal on first iteration 
     size_t parsed_size = 0;
     unsigned long start_time = millis();
     uint32_t rx_timeout = timeout_ms;
     while (conveyed_data_len != parsed_size) {
         if ((millis() - start_time >= rx_timeout)) {
-            Serial.println("RX TIMEOUT ");
+            Serial.println("RX TIMEOUT - FAILSAFE, breaking out of RX loop.");
             success = false; // TODO encode failure due to timeout
-            break; // FIXME timeout never hits atm due to 500ms timeout below
+            break;
         }
 
         size_t rx_size     = 0;
+        // TODO use this libs timeout - ticks convert
         rmt_item32_t* item = (rmt_item32_t*)xRingbufferReceive(this->rx_ring_buff, &rx_size, 500);
         // Serial.printf("---------\r\n");
         if (item == nullptr) {
             Serial.println("Nothing in ring buffer. ");
-            break; 
+            continue; 
         }
         if (rx_size != 0) {
 
@@ -278,7 +238,7 @@ bool RF433::_tryRx(uint8_t* buffer, size_t buffer_size, size_t* rxd_size, uint32
 
     }
     
-    rmt_rx_stop(RMT_RX_CHANNEL);// TODO cleanup func
+    rmt_rx_stop(RMT_RX_CHANNEL);
     Serial.println("RMT RX stopped.");
     if (success) {
         Serial.println("RX SUCCESS");
@@ -289,43 +249,6 @@ bool RF433::_tryRx(uint8_t* buffer, size_t buffer_size, size_t* rxd_size, uint32
         Serial.println("RX FAILURE");
         return false;
     }
-
-
-    // size_t rx_size     = 0;
-    // rmt_item32_t* item = (rmt_item32_t*)xRingbufferReceive(this->rx_ring_buff, &rx_size, 500);
-    // if (item == nullptr) {
-    //     Serial.println("RX TIMEOUT - nullptr from rx buffer");
-    //     _rxCleanup();
-    //     return false;
-    // }
-    // if (rx_size == 0) {
-    //     Serial.println("RX TIMEOUT - rx_size is 0");
-    //     _rxCleanup();
-    //     vRingbufferReturnItem(this->rx_ring_buff, (void*)item);
-    //     return false;
-    // }
-    // uint8_t MAXSIZE = 255;
-    // uint8_t databuff[MAXSIZE+1] = {0};
-    // rx_size = rx_size / sizeof(rmt_item32_t); // convert from bytes to number of RMT items
-
-    // size_t conveyed_data_len = 0;
-    // size_t parsed_size = _parseData(item, &conveyed_data_len, rx_size, databuff, MAXSIZE);
-    // if (!packetComplete(conveyed_data_len, parsed_size)) {
-    //     _rxCleanup();
-    //     vRingbufferReturnItem(this->rx_ring_buff, (void*)item);
-    //     return false;             
-    // }
-    // if (parsed_size > buffer_size) {
-    //     Serial.printf("RX BUFFER OVERFLOW - parsed size %d exceeds buffer size %d\r\n", parsed_size, buffer_size);
-    //     _rxCleanup();
-    //     vRingbufferReturnItem(this->rx_ring_buff, (void*)item);
-    //     return false;
-    // }
-    // memcpy(buffer, databuff, parsed_size);
-    // *rxd_size = parsed_size;
-    // _rxCleanup();
-    // // do not return to buffer, as we have consumed said complete packet
-    // return true;
 }
 
 
@@ -342,31 +265,8 @@ err RF433::receiveOne(uint8_t* buffer, size_t buffer_size, size_t* rxd_size, uin
     if (success) {
         return err::none;
     } else {
-        // HACK is an assumption, could be another type of error
+        // TODO is an assumption, could be another type of error
+        // TODO do error returns from _tryRx
         return err::timeout_expired;
     }
-
-    // blocking case (no timeout)
-    // if (timeout_ms == 0) {
-    //     while (!_tryRx(buffer, buffer_size, rxd_size)) {
-    //         // wait for packet
-    //         delay(RX_WAIT_INTERVAL_MS);
-    //     }
-    //     // _rxCleanup();
-    //     return err::none;
-    // }
-    
-    // // timout case 
-    // unsigned long startMillis = millis();
-    // while (millis() - startMillis < timeout_ms) {
-    //     if (_tryRx(buffer, buffer_size, rxd_size)) {
-    //         // _rxCleanup();
-    //         return err::none;
-    //     }
-    //     delay(RX_WAIT_INTERVAL_MS);
-    // }
-    // Serial.println("Timeout expired in RF433 receiveOne");
-    
-    // // _rxCleanup();
-    // return err::timeout_expired;
 }

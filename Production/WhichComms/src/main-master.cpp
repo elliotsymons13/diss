@@ -1,6 +1,7 @@
 
 
 #include <WhichCommsCommon.h>
+#include "M5Unified.h"
 
 #ifdef USE_LORA // HACK better compile flags
 LoRa868 lora;
@@ -9,6 +10,7 @@ RF433 rf433;
 #endif
 
 void setup() {
+    M5.begin();
 #ifdef USE_LORA
     setup_common_lora868(&lora);
 #else
