@@ -41,7 +41,7 @@ rmt_item32_t rmtbuff[2048];
 
 void initRMT()
 {
-    rmt_config_t txconfig;
+    rmt_config_t txconfig = {};
     txconfig.rmt_mode                 = RMT_MODE_TX;
     txconfig.channel                  = RMT_TX_CHANNEL;
     txconfig.gpio_num                 = gpio_num_t(RTM_TX_GPIO_NUM);
@@ -79,8 +79,9 @@ void send(uint8_t* buff, size_t size, uint8_t tx_repeats = 3)
         }
     }
     const uint32_t rmt_items = 2 + size * 8; // RMT protocol has 2 leading items (start codes) and then 8 items per byte of data
-    Serial.printf("Sending %d bytes and %u items\n", size, rmt_items);
+    Serial.printf("Sending packet -  %d bytes encoded in %u RMT items - sending this %d times\n", size, rmt_items, tx_repeats);
     for (int i = 0; i < tx_repeats; i++) {
+        Serial.printf("Repeat %d", i);
         ESP_ERROR_CHECK(rmt_write_items(RMT_TX_CHANNEL, rmtbuff, rmt_items, false));
         ESP_ERROR_CHECK(rmt_wait_tx_done(RMT_TX_CHANNEL, portMAX_DELAY));
     }
@@ -124,7 +125,7 @@ void loop()
         
         uint32_t old_count = send_count;
         send_count = send_count + retries;
-        Serial.printf("SENDING packets %d - %d \r\n", old_count, send_count);
+        Serial.printf("SENDING %d packets %d - %d \r\n", retries, old_count+1, send_count);
         send(data, user_data_len, retries);
         // send(invalid_data, invalid_user_data_len);
 	}

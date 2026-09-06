@@ -25,7 +25,7 @@
 #define RMT_1US_TICKS   (80000000 / RMT_CLK_DIV / 1000000)
 #define RMT_1MS_TICKS   (RMT_1US_TICKS * 1000)
 
-const uint16_t rx_buff_size = 2048*8;
+const uint16_t RX_BUFF_SIZE = 2048*8;
 
 #define T0H 670
 #define T1H 320
@@ -40,8 +40,8 @@ const uint16_t rx_buff_size = 2048*8;
 
 // XXX hardcoded!
 // examples for use, in reality calling library will define and pass in the data to be sent
-const uint8_t expected_data_len = 6; // expect 6 bytes of data to follow the length byte
-uint8_t expected_data[1+expected_data_len] = {expected_data_len, 0xAA, 0x55, 0x01, 0x02, 0x03, 0x04};
+// const uint8_t expected_data_len = 6; // expect 6 bytes of data to follow the length byte
+// uint8_t expected_data[1+expected_data_len] = {expected_data_len, 0xAA, 0x55, 0x01, 0x02, 0x03, 0x04};
 
 void initRMT()
 {
@@ -56,7 +56,7 @@ void initRMT()
     rxconfig.rx_config.idle_threshold      = 3 * RMT_1MS_TICKS;
 
     ESP_ERROR_CHECK(rmt_config(&rxconfig));
-    ESP_ERROR_CHECK(rmt_driver_install(rxconfig.channel, rx_buff_size, 0));
+    ESP_ERROR_CHECK(rmt_driver_install(rxconfig.channel, RX_BUFF_SIZE, 0));
 }
 
 
@@ -89,17 +89,16 @@ void setup()
 }
 
 
-/*
- * Parse received RMT items into a byte array
+/**
+ * Attempt to decode a single packet from the recieved RMT items. 
  * 
- * Takes an array of encoded bits ('RMT items'), and samples each to deduce 0 or 1. 
- * 
+ * Where a packet is not yet completely received, the function will 
+ * return parsed items to the buffer, for later re-parsing once more data is 
+ * received in subsequent call. 
  */
-int parsedData(rmt_item32_t* item, uint8_t* conveyed_size, size_t rx_size, uint8_t* dataptr, size_t maxsize)
+size_t parsedData(rmt_item32_t* item, size_t* conveyed_size, size_t rx_size, uint8_t* dataptr, size_t maxsize)
 {
-    if((item == nullptr)||(rx_size < 4))return -1;
-    if (rx_size < 4) return -1;
-    // Serial.printf("rx_size:%d\r\n", rx_size);
+    if((item == nullptr)||(rx_size < 4))return 0;
     unsigned int cnt        = 0;
     uint8_t data   = 0;
     uint8_t bitcnt = 0, byte_cnt = 0;
@@ -109,7 +108,7 @@ int parsedData(rmt_item32_t* item, uint8_t* conveyed_size, size_t rx_size, uint8
         candidateBit.level0    = 1;
         candidateBit.level1    = 0;
         candidateBit.duration0 = item[0].duration1;
-        do {
+        while (cnt+1 < rx_size) {
             cnt++;
             candidateBit.duration1 = item[cnt].duration0;
             if (cnt > 1) {
@@ -143,7 +142,7 @@ int parsedData(rmt_item32_t* item, uint8_t* conveyed_size, size_t rx_size, uint8
             }
             candidateBit.duration0 = item[cnt].duration1;
             // Serial.printf("symbols processed count %d, of %u\r\n", cnt, rx_size);
-        } while (cnt < rx_size);
+        }
 
         // Serial.println("END");
     }
@@ -153,29 +152,30 @@ int parsedData(rmt_item32_t* item, uint8_t* conveyed_size, size_t rx_size, uint8
     return byte_cnt;
 }
 
-bool validatedData(uint8_t conveyed_data_len, size_t parsed_size, uint8_t* databuff, size_t expected_data_len, uint8_t* expected_data) {
+/**
+ * Check if conveyed lenth (as reported in the first byte of the packet), matches 
+ * the actual parsed length. If the lengths match, the packet is complete (return true)
+ * Otherwise return false. 
+ */
+bool packetComplete(uint8_t conveyed_data_len, size_t parsed_size) {
     
     if (conveyed_data_len != parsed_size) {
         // Serial.printf("Conveyed data length (%d) does not match parsed size (%d)\r\n", conveyed_data_len, parsed_size);
         return false;
     }
-
-    for (int i = 0; i < expected_data_len; i++) {
-        if (databuff[i] != expected_data[i]) {
-            // Serial.printf("Data mismatch at index %d: expected 0x%02X, got 0x%02X\r\n", i, expected_data[i], databuff[i]);
-            return false;
-        }
-    }
     return true;
 }
-
+#include <limits.h>
 void receiveValidateOnce(RingbufHandle_t* rb, uint8_t* received_count) {
 
     rmt_rx_start(RMT_RX_CHANNEL, true);
     unsigned long start_time = millis();
     unsigned long rx_timeout = 3000;
 
-    while (true) {
+    size_t conveyed_data_len = UINT_MAX; // HACK to ensure nonequal on first iteration 
+    size_t parsed_size = 0; 
+
+    while (conveyed_data_len != parsed_size) {
         if ((millis() - start_time >= rx_timeout)) {
             Serial.println("RX TIMEOUT 2 - FAILSAFE, should not occur in normal operation");
             break;
@@ -193,13 +193,12 @@ void receiveValidateOnce(RingbufHandle_t* rb, uint8_t* received_count) {
             uint8_t databuff[MAXSIZE+1] = {0};
             rx_size = rx_size / sizeof(rmt_item32_t); // convert from bytes to number of RMT items
 
-            uint8_t conveyed_data_len = 0;
-            size_t parsed_size = parsedData(item, &conveyed_data_len, rx_size, databuff, MAXSIZE);
-            if (validatedData(conveyed_data_len, parsed_size, databuff, expected_data_len, expected_data)) {
-                // Serial.printf("Data has correct length, content, etc. as expected by caller.\r\n");
+            parsed_size = parsedData(item, &conveyed_data_len, rx_size, databuff, MAXSIZE);
+            if (packetComplete(conveyed_data_len, parsed_size)) {
+                Serial.printf("PACKET COMPLETE - Data has length matching that self-described in packet header.\r\n");
                 (*received_count)++;
             } else {
-                // Serial.printf("INVALID DATA RECEIVED.\r\n");
+                Serial.printf("INVALID DATA RECEIVED - too short.\r\n");
             }
             
         }
@@ -215,7 +214,7 @@ uint8_t received_count = 0;
 void loop()
 {
     RingbufHandle_t rb = nullptr;
-    rmt_get_ringbuf_handle(RMT_RX_CHANNEL, &rb);
+    ESP_ERROR_CHECK(rmt_get_ringbuf_handle(RMT_RX_CHANNEL, &rb));
 
     while (true) {
 

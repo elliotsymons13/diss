@@ -37,8 +37,8 @@ class LoRa868 : public OneComms {
         virtual bool begin() override;
         virtual bool post_config() override;
         virtual bool send(const uint8_t* data, size_t size) override;
-        virtual err receiveOne(uint8_t* buffer, size_t size) override;
-        virtual err receiveOne(uint8_t* buffer, size_t size, uint32_t timeout_ms) override;
+        virtual err receiveOne(uint8_t* buffer, size_t buffer_size, size_t* rxd_size) override;
+        virtual err receiveOne(uint8_t* buffer, size_t buffer_size, size_t* rxd_size, uint32_t timeout_ms) override;
 
         // TODO protected?
         M5_SX127X unwrap();

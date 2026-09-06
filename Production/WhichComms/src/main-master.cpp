@@ -2,17 +2,26 @@
 
 #include <WhichCommsCommon.h>
 
+#ifdef USE_LORA // HACK better compile flags
 LoRa868 lora;
+#else 
+RF433 rf433;
+#endif
 
 void setup() {
-    setup_common(&lora);
+#ifdef USE_LORA
+    setup_common_lora868(&lora);
+#else
+    setup_common_rf433(&rf433);
+#endif // USE_LORA
 }
 
 int counter = 0;
 void loop() {
-    // put your main code here, to run repeatedly:
 
-    Serial.print("MASTER Sending packet: ");
+
+#ifdef USE_LORA
+    Serial.print("MASTER LoRa868 Sending packet: ");
     Serial.println(counter);
 
     // send packet
@@ -29,4 +38,19 @@ void loop() {
     counter++;
 
     delay(5000);
+#else
+    const size_t user_data_len = 6;
+    const size_t packet_size = 1 + user_data_len; // 1 byte for length + user data
+    const uint8_t data[1+user_data_len] = {packet_size, 0xAA, 0x55, 0x01, 0x02, 0x03, 0x04};
+    Serial.print("MASTER RF433 Sending packet: ");
+    uint32_t send_count = 0;
+    const uint8_t retries = 1;
+    while (true) {
+        uint32_t old_count = send_count;
+        send_count = send_count + retries;
+        Serial.printf("SENDING %d packets %d - %d \r\n", retries, old_count+1, send_count);
+        rf433.send(data, packet_size);
+        delay(345);
+    }
+#endif // USE_LORA
 }

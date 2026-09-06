@@ -9,10 +9,12 @@
 #include <EverywhereCommon.h>
 // #include <OneComms.h> //included incirectly by LoRa868.h etc. but is needed here so should specify explitly 
 #include <LoRa868.h>
+#include <RF433.h>
 
-#define DEBUG_MODE 1 // comment out to remove wait for serial monitor intput on boot
+#define DEBUG_MODE // comment out to remove wait for serial monitor intput on boot
 
 void await_serial();
-void setup_common(LoRa868* lora);
+void setup_common_lora868(LoRa868* lora);
+bool setup_common_rf433(RF433* rf433);
 
 #endif // WHICHCOMMSCOMMON_H

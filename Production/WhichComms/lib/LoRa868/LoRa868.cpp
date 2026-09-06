@@ -36,7 +36,7 @@ bool LoRa868::send(const uint8_t* data, size_t size) {
     return true;
 }
 
-bool _tryRx(uint8_t* buffer, size_t size) {
+bool _tryRx(uint8_t* buffer, size_t buffer_size, size_t* rxd_size) {
     // try to parse packet
     if (!LoRa.parsePacket()) {
         return false;
@@ -48,11 +48,12 @@ bool _tryRx(uint8_t* buffer, size_t size) {
     unsigned int next_byte_pos = 0;
     while (LoRa.available()) {
         char c = (char)LoRa.read();
-        if (next_byte_pos < size) {
+        if (next_byte_pos < buffer_size) {
             buffer[next_byte_pos++] = c;
         } else {
-            return false; // buffer too small for packet 
             Serial.println("Buffer too small for packet. Packet truncated.");
+            *rxd_size = next_byte_pos;
+            return false; // buffer too small for packet 
             // TODO return codes
         }
         Serial.print(c);
@@ -61,22 +62,22 @@ bool _tryRx(uint8_t* buffer, size_t size) {
     // print RSSI of packet
     Serial.print("' with RSSI ");
     Serial.println(LoRa.packetRssi());
+
+    // TODO populate buffer & size
+    *rxd_size = next_byte_pos;
     return true; // packet received
 }
 
 // TODO try porting impl to OneComms.cpp, as common
-err LoRa868::receiveOne(uint8_t* buffer, size_t size) {
-    return receiveOne(buffer, size, 0);
+err LoRa868::receiveOne(uint8_t* buffer, size_t buffer_size, size_t* rxd_size) {
+    return receiveOne(buffer, buffer_size, rxd_size, 0);
 }
 
-err LoRa868::receiveOne(uint8_t* buffer, size_t size, uint32_t timeout_ms) {
-    // START HERE
-    // TODO actual impl, including 0 triggered blocking case, and timeout case
+err LoRa868::receiveOne(uint8_t* buffer, size_t buffer_size, size_t* rxd_size, uint32_t timeout_ms) {
 
     // blocking case (no timeout)
     if (timeout_ms == 0) {
-        // TODO implement timeout
-        while (!_tryRx(buffer, size)) {
+        while (!_tryRx(buffer, buffer_size, rxd_size)) {
             // wait for packet
             delay(RX_WAIT_INTERVAL_MS);
         }
@@ -86,7 +87,7 @@ err LoRa868::receiveOne(uint8_t* buffer, size_t size, uint32_t timeout_ms) {
     // timout case 
     unsigned long startMillis = millis();
     while (millis() - startMillis < timeout_ms) {
-        if (_tryRx(buffer, size)) {
+        if (_tryRx(buffer, buffer_size, rxd_size)) {
             return err::none;
         }
         delay(RX_WAIT_INTERVAL_MS);

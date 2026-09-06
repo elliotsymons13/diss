@@ -19,7 +19,7 @@
 #include "M5Unified.h"
 
 
-#define RF433RX // define for Rx mode, comment for Tx mode
+// #define RF433RX // define for Rx mode, comment for Tx mode
 
 #define RMT_TX_CHANNEL  (RMT_CHANNEL_0)
 #define RMT_RX_CHANNEL  (RMT_CHANNEL_4)
