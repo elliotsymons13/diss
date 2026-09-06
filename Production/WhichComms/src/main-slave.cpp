@@ -1,5 +1,6 @@
 
 #include <WhichCommsCommon.h>
+#include "M5Unified.h"
 
 // HACK flag for quick test
 // #define USE_LORA
@@ -8,15 +9,22 @@ LoRa868 lora;
 RF433 rf433;
 
 void setup() {
+    M5.begin();
 #ifdef USE_LORA
     setup_common_lora868(&lora);
 #else
-    if (!setup_common_rf433((RF433*) &rf433)) {
-        Serial.println("FATAL ERROR - STOPPING - Failed to setup RF433");
-        while (true) {
-            delay(1000);
-        }
+    await_serial();
+
+    rf433.pre_config();
+    if (!rf433.begin_tx_only_mode()) {
+        Serial.println("Failed to test initialize TX RF433. ");
+        block_forever();
     }
+    if (!rf433.begin_rx_only_mode()) {
+        Serial.println("Failed to test initialize RX RF433. ");
+        block_forever();
+    }
+    rf433.post_config();
 #endif // USE_LORA
 }
 
@@ -53,7 +61,7 @@ void loop() {
                 Serial.println("Nothing received within 5s timeout. Could do other things now, but this example will just loop and try again. "); // nothing rx'd
                 break;
         }
-        delay(1000); // HACK arb delay
+        delay(100); // HACK arb delay
     }
 #endif // USE_LORA
 }

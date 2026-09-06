@@ -34,7 +34,9 @@ class LoRa868 : public OneComms {
     // no specifics in header beyond OneComms
     public:
         virtual bool pre_config() override;
-        virtual bool begin() override;
+        virtual bool begin_duplex_mode() override;
+        virtual bool begin_rx_only_mode() override;
+        virtual bool begin_tx_only_mode() override;
         virtual bool post_config() override;
         virtual bool send(const uint8_t* data, size_t size) override;
         virtual err receiveOne(uint8_t* buffer, size_t buffer_size, size_t* rxd_size) override;

@@ -12,7 +12,18 @@ void setup() {
 #ifdef USE_LORA
     setup_common_lora868(&lora);
 #else
-    setup_common_rf433(&rf433);
+    await_serial();
+
+    rf433.pre_config();
+    if (!rf433.begin_tx_only_mode()) {
+        Serial.println("Failed to test initialize TX RF433. ");
+        block_forever();
+    }
+    if (!rf433.begin_rx_only_mode()) {
+        Serial.println("Failed to test initialize RX RF433. ");
+        block_forever();
+    }
+    rf433.post_config();
 #endif // USE_LORA
 }
 

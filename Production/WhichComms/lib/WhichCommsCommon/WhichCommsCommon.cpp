@@ -15,26 +15,22 @@ void await_serial() {
     // Serial.printf("Last reset reason: %d\n", esp_reset_reason());
 }
 
+void block_forever() {
+    Serial.println("BLOCKING forever due to unrecoverable error. ");
+    while (true) {
+        delay(1000);
+        Serial.print(".");\
+    }
+}
+
 // TODO setup_common could be a template function, iterating over all Comms types, calling same setup funcs
 void setup_common_lora868(LoRa868* lora) {
     await_serial();
 
     lora->pre_config();
-    lora->begin();
+    lora->begin_duplex_mode();
     lora->post_config();
 
     M5_SX127X lora_impl = lora->unwrap(); // TODO rm test
     // lora_impl.setFrequency(433E6); 
-}
-
-bool setup_common_rf433(RF433* rf433) {
-    await_serial();
-
-    rf433->pre_config();
-    if (!rf433->begin()) {
-        Serial.println("Failed to initialize RF433");
-        return false;
-    }
-    rf433->post_config();
-    return true;
 }

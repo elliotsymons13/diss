@@ -7,7 +7,7 @@ bool LoRa868::pre_config() {
     return true;
 }
 
-bool LoRa868::begin() { // TODO some design pattern to prevent these being called if Serial.begin not called yet?
+bool LoRa868::begin_duplex_mode() { // TODO some design pattern to prevent these being called if Serial.begin not called yet?
     Serial.println("LoRa init start. ");
     uint8_t attempts = 0;
     while (!LoRa.begin(LORA_FREQ) & attempts++ <= MAX_LORA_INIT_ATTEMPTS) {
@@ -20,6 +20,16 @@ bool LoRa868::begin() { // TODO some design pattern to prevent these being calle
     }
     Serial.printf("LoRa init success on attempt %d. \n", attempts);
     return true;
+}
+
+bool LoRa868::begin_rx_only_mode() {
+    Serial.println("LoRa868 bearer functions in duplex mode, and does not support RX-only mode. Invoking begin_duplex_mode instead. ");
+    return this->begin_duplex_mode();
+}
+
+bool LoRa868::begin_tx_only_mode() {
+    Serial.println("LoRa868 bearer functions in duplex mode, and does not support TX-only mode. Invoking begin_duplex_mode instead. ");
+    return this->begin_duplex_mode();
 }
 
 bool LoRa868::post_config() {

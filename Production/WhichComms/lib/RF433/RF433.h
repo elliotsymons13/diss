@@ -21,6 +21,7 @@
 
 #define RX_WAIT_INTERVAL_MS 100
 
+
 #define RMT_TX_CHANNEL  (RMT_CHANNEL_0)
 #define RMT_RX_CHANNEL  (RMT_CHANNEL_4)
 #define RTM_RX_GPIO_NUM (8)// (18) for port C, or (8) for port B // modified for CoreS3 // FIXME RMT typos
@@ -43,15 +44,23 @@
 class RF433 : public OneComms {
     public:
         bool pre_config();
-        bool begin();
+        bool begin_duplex_mode();
+        bool begin_tx_only_mode();
+        bool begin_rx_only_mode();
         bool post_config();
         bool send(const uint8_t* data, size_t size);
         err receiveOne(uint8_t* buffer, size_t buffer_size, size_t* rxd_size);
         err receiveOne(uint8_t* buffer, size_t buffer_size, size_t* rxd_size, uint32_t timeout_ms);
 
+    
+
     private:
         RingbufHandle_t rx_ring_buff = nullptr;
-        bool _tryRx(uint8_t* buffer, size_t buffer_size, size_t* rxd_size);
+        rmt_config_t txconfig = {};
+        // bool txInstalled = false;
+        bool rxInstalled = false;
+        rmt_config_t rxconfig = {};
+        bool _tryRx(uint8_t* buffer, size_t buffer_size, size_t* rxd_size, uint32_t timeout_ms);
 };
 
 #endif // RF433_H

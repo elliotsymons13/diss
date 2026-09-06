@@ -13,8 +13,9 @@
 
 #define DEBUG_MODE // comment out to remove wait for serial monitor intput on boot
 
+
 void await_serial();
+void block_forever();
 void setup_common_lora868(LoRa868* lora);
-bool setup_common_rf433(RF433* rf433);
 
 #endif // WHICHCOMMSCOMMON_H
