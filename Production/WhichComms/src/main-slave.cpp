@@ -51,7 +51,6 @@ void loop() {
     // RF433 test case
     uint8_t buffer[256]; // arbitrary length, but library will handle any buffer overflow internally
     Serial.print("SLAVE Awaiting RF433 packet (timeout): ");
-    rf433.begin_rx_only_mode(); // // HACK only once?
     while (true) {
         size_t rxd_size = 0;
         switch (rf433.receiveOne((uint8_t*)buffer, sizeof(buffer), &rxd_size, 5000)) {
@@ -65,7 +64,7 @@ void loop() {
                 Serial.println("Buffer overflow occurred while receiving RF433 packet.");
                 break;
         }
-        delay(10); // HACK arb delay
+        delay(10);
         M5.update();
         // TODO Could do other things now, but this example will just loop and try again.
     }
