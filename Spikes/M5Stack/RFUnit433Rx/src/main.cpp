@@ -162,7 +162,7 @@ bool validatedData(uint8_t conveyed_data_len, size_t parsed_size, uint8_t* datab
 
     for (int i = 0; i < expected_data_len; i++) {
         if (databuff[i] != expected_data[i]) {
-            // Serial.printf("Data mismatch at index %d: expected 0x%02X, got 0x%02X\r\n", i, expected_data[i], databuff[i]);
+            Serial.printf("Data mismatch at index %d: expected 0x%02X, got 0x%02X\r\n", i, expected_data[i], databuff[i]);
             return false;
         }
     }
@@ -196,10 +196,15 @@ void receiveValidateOnce(RingbufHandle_t* rb, uint8_t* received_count) {
             uint8_t conveyed_data_len = 0;
             size_t parsed_size = parsedData(item, &conveyed_data_len, rx_size, databuff, MAXSIZE);
             if (validatedData(conveyed_data_len, parsed_size, databuff, expected_data_len, expected_data)) {
-                // Serial.printf("Data has correct length, content, etc. as expected by caller.\r\n");
+                Serial.printf("Data has correct length, content, etc. as expected by caller.\r\n");
+                Serial.printf("Parsed Data (%d bytes): \n", parsed_size);
+                for (int i = 0; i < parsed_size; i++) {
+                    Serial.printf("%02X ", databuff[i]);
+                }
+                Serial.println();
                 (*received_count)++;
             } else {
-                // Serial.printf("INVALID DATA RECEIVED.\r\n");
+                Serial.printf("INVALID DATA RECEIVED.\r\n");
             }
             
         }

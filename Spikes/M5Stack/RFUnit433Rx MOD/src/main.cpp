@@ -196,6 +196,12 @@ void receiveValidateOnce(RingbufHandle_t* rb, uint8_t* received_count) {
             parsed_size = parsedData(item, &conveyed_data_len, rx_size, databuff, MAXSIZE);
             if (packetComplete(conveyed_data_len, parsed_size)) {
                 Serial.printf("PACKET COMPLETE - Data has length matching that self-described in packet header.\r\n");
+                Serial.printf("Parsed Data (%d bytes): \n", parsed_size);
+                for (int i = 0; i < parsed_size; i++) {
+                    Serial.printf("%02X ", databuff[i]);
+                }
+                Serial.println();
+            
                 (*received_count)++;
             } else {
                 Serial.printf("INVALID DATA RECEIVED - too short.\r\n");
