@@ -54,7 +54,7 @@ void loop() {
 #else
     const size_t user_data_len = 6;
     const size_t packet_size = 1 + user_data_len; // 1 byte for length + user data
-    const uint8_t data[1+user_data_len] = {packet_size, 0xAA, 0x55, 0x01, 0x02, 0x03, 0x04};
+    const uint8_t data[1+user_data_len] = {packet_size, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00,};
     Serial.print("MASTER RF433 Sending packet: ");
     uint32_t send_count = 0;
     const uint8_t retries = 1;

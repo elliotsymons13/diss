@@ -42,6 +42,9 @@
 		{
 			"name": "WhichComms",
 			"path": "../Production/WhichComms"
+		},
+		{
+			"path": "../../Dissertation report"
 		}
 	],
 	"settings": {}
