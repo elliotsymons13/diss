@@ -3,6 +3,7 @@
 
 enum class err {
     none,
+    waiting,
     timeout_expired, 
     buffer_overflow
 };

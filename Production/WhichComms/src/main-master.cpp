@@ -53,8 +53,7 @@ void loop() {
     delay(5000);
 #else
     const size_t user_data_len = 6;
-    const size_t packet_size = 1 + user_data_len; // 1 byte for length + user data
-    const uint8_t data[1+user_data_len] = {packet_size, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00,};
+    const uint8_t data[user_data_len] = {0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x06};
     Serial.print("MASTER RF433 Sending packet: ");
     uint32_t send_count = 0;
     const uint8_t retries = 1;
@@ -62,7 +61,7 @@ void loop() {
         uint32_t old_count = send_count;
         send_count = send_count + retries;
         Serial.printf("SENDING %d packets %d - %d \r\n", retries, old_count+1, send_count);
-        rf433.send(data, packet_size);
+        rf433.send(data, user_data_len);
         delay(345);
     }
 #endif // USE_LORA

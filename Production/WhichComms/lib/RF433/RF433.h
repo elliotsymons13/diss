@@ -41,6 +41,11 @@
 #define RMT_START_CODE0 {4868, 1, 2469, 0}
 #define RMT_START_CODE1 {1647, 1, 315, 0}
 
+#define SYNC_HEADER_SIZE 6
+#define LEN_FIELD_SIZE 1 // fixed at 1 for now in parts of implemetation 
+
+static uint8_t header[SYNC_HEADER_SIZE] = {0xAA, 0x55, 0x01, 0x02, 0x03, 0x04};
+
 class RF433 : public OneComms {
     public:
         bool pre_config();

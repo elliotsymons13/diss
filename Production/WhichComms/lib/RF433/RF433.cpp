@@ -80,34 +80,53 @@ bool RF433::post_config() {
 
 
 bool RF433::send(const uint8_t* data, size_t buffer_size) {
+    uint8_t size[LEN_FIELD_SIZE];
+    size[0] = buffer_size; // TODO could support larger length field with simple change here and in function param type
 
-    const uint8_t user_data_len = 6;
-    uint8_t dl[1+user_data_len] = {user_data_len, 0xAA, 0x55, 0x01, 0x02, 0x03, 0x04};
+    this->begin_tx_only_mode();
+    size_t packet_len_with_header = SYNC_HEADER_SIZE + LEN_FIELD_SIZE + buffer_size;
+    
     rmtbuff[0] = (rmt_item32_t){RMT_START_CODE0};
     rmtbuff[1] = (rmt_item32_t){RMT_START_CODE1};
-    Serial.println("Sending");
-    for (int i = 0; i < 1+user_data_len; i++) {
+    
+    // sync header
+    int i = 0;
+    for (; i < SYNC_HEADER_SIZE; i++) {
         uint8_t mark = 0x80;
         for (int n = 0; n < 8; n++) {
-            rmtbuff[2 + i * 8 + n] = ((dl[i] & mark)) ? ((rmt_item32_t){RMT_CODE_H}) : ((rmt_item32_t){RMT_CODE_L});
+            rmtbuff[2 + i * 8 + n] = ((header[i] & mark)) ? ((rmt_item32_t){RMT_CODE_H}) : ((rmt_item32_t){RMT_CODE_L});
             mark >>= 1;
         }
-        Serial.printf("%02X ", dl[i]);
+        Serial.printf("%02X ", header[i]);
+    }
+    // length field
+    for (; i < SYNC_HEADER_SIZE + LEN_FIELD_SIZE; i++) {
+        uint8_t mark = 0x80;
+        for (int n = 0; n < 8; n++) {
+            rmtbuff[2 + i * 8 + n] = ((size[i-SYNC_HEADER_SIZE] & mark)) ? ((rmt_item32_t){RMT_CODE_H}) : ((rmt_item32_t){RMT_CODE_L});
+            mark >>= 1;
+        }
+        Serial.printf("%02X ", size[i-SYNC_HEADER_SIZE]);
+    }
+    // variable length body
+    for (; i < packet_len_with_header; i++) {
+        uint8_t mark = 0x80;
+        for (int n = 0; n < 8; n++) {
+            rmtbuff[2 + i * 8 + n] = ((data[i-SYNC_HEADER_SIZE-LEN_FIELD_SIZE] & mark)) ? ((rmt_item32_t){RMT_CODE_H}) : ((rmt_item32_t){RMT_CODE_L});
+            mark >>= 1;
+        }
+        Serial.printf("%02X ", data[i-SYNC_HEADER_SIZE-LEN_FIELD_SIZE]);
     }
     Serial.println();
-    const uint32_t rmt_items = 2 + (1+user_data_len) * 8; // RMT protocol has 2 leading items (start codes) and then 8 items per byte of data
-    Serial.printf("Sending %d bytes and %u items\n", 1+user_data_len, rmt_items);
-    for (int i = 0; i < 3; i++) {
+    const uint32_t rmt_items = 2 + packet_len_with_header * 8; // RMT protocol has 2 leading items (start codes) and then 8 items per byte of data
+    Serial.printf("Sending packet -  %d bytes encoded in %u RMT items\n", buffer_size, rmt_items);
+    // for (int i = 0; i < 3; i++) { // HACK sending three times
         ESP_ERROR_CHECK(rmt_write_items(RMT_TX_CHANNEL, rmtbuff, rmt_items, false));
         ESP_ERROR_CHECK(rmt_wait_tx_done(RMT_TX_CHANNEL, portMAX_DELAY));
-    }
-    
+    // }
+
     return true;
 }
-// XXX hardcoded!
-// examples for use, in reality calling library will define and pass in the data to be sent
-const uint8_t expected_data_len = 6; // expect 6 bytes of data to follow the length byte
-uint8_t expected_data[1+expected_data_len] = {expected_data_len, 0xAA, 0x55, 0x01, 0x02, 0x03, 0x04};
 
 /*
  * Parse received RMT items into a byte array
@@ -115,9 +134,8 @@ uint8_t expected_data[1+expected_data_len] = {expected_data_len, 0xAA, 0x55, 0x0
  * Takes an array of encoded bits ('RMT items'), and samples each to deduce 0 or 1. 
  * 
  */
-int parsedData(rmt_item32_t* item, uint8_t* conveyed_size, size_t rx_size, uint8_t* dataptr, size_t maxsize)
+int parsedData(rmt_item32_t* item, size_t rx_size, uint8_t* dataptr, size_t maxsize)
 {
-    // TODO max size checks
     if((item == nullptr)||(rx_size < 4))return -1;
     if (rx_size < 4) return -1;
     // Serial.printf("rx_size:%d\r\n", rx_size);
@@ -147,7 +165,7 @@ int parsedData(rmt_item32_t* item, uint8_t* conveyed_size, size_t rx_size, uint8
                         // Serial.printf("[%d:]%02x ", byte_cnt, data); // print the byte in hex (2 digits)
                         if (byte_cnt >= maxsize) {
                             Serial.printf("\r\nBuffer overflow, maxsize=%d\r\n. Printing partial rx only. ", maxsize);
-                            *conveyed_size = dataptr[0];
+                            // *conveyed_size = dataptr[0];
                             // Serial.printf("conveyed size: %d\r\n", *conveyed_size);
                             return byte_cnt;
                         }
@@ -158,52 +176,60 @@ int parsedData(rmt_item32_t* item, uint8_t* conveyed_size, size_t rx_size, uint8
                     }
                 } else {
                     // Serial.printf("bytes rxd in pkt: %d", byte_cnt);
-                    *conveyed_size = dataptr[0];
+                    // *conveyed_size = dataptr[0];
                     // Serial.printf("conveyed size: %d\r\n", *conveyed_size);
                     return byte_cnt;
                 }
             }
             candidateBit.duration0 = item[cnt].duration1;
             // Serial.printf("symbols processed count %d, of %u\r\n", cnt, rx_size);
-        } while (cnt < rx_size);
+        } while (cnt + 1 < rx_size);
 
         // Serial.println("END");
     }
     // record conveyed size (first byte)
-    *conveyed_size = dataptr[0];
+    // *conveyed_size = dataptr[0];
     // Serial.printf("conveyed size: %d\r\n", *conveyed_size);
     return byte_cnt;
 }
 
-bool validatedData(uint8_t conveyed_data_len, size_t parsed_size, uint8_t* databuff, size_t expected_data_len, uint8_t* expected_data) {
-    
-    if (conveyed_data_len != parsed_size) {
-        // Serial.printf("Conveyed data length (%d) does not match parsed size (%d)\r\n", conveyed_data_len, parsed_size);
+bool validatedData(size_t parsed_size, uint8_t* databuff, size_t *conveyed_size) {
+    const size_t minimum_size = SYNC_HEADER_SIZE + LEN_FIELD_SIZE;
+    if (databuff == nullptr || conveyed_size == nullptr || parsed_size < minimum_size) {
         return false;
     }
-
-    for (int i = 0; i < expected_data_len; i++) {
-        if (databuff[i] != expected_data[i]) {
-            Serial.printf("Data mismatch at index %d: expected 0x%02X, got 0x%02X\r\n", i, expected_data[i], databuff[i]);
+    
+    // check header
+    size_t i = 0;
+    for (; i < SYNC_HEADER_SIZE; i++) {
+        if (databuff[i] != header[i]) {
+            Serial.printf("Header data mismatch at index %d: expected 0x%02X, got 0x%02X\r\n", i, header[i], databuff[i]);
             return false;
         }
     }
+
+    // check size conveyed against parsed size
+    // TODO hardcoded assumption that LEN_FIELD_SIZE is 1
+    size_t remaining_size = parsed_size - SYNC_HEADER_SIZE - LEN_FIELD_SIZE;
+    if (remaining_size != databuff[i]) {
+        Serial.printf("Remaining size (%d) does not match conveyed size (%d) in packet index (%d)\r\n", remaining_size, databuff[i], i);
+        return false;
+    }
+    *conveyed_size = databuff[i];
     return true;
 }
 
 err RF433::_tryRx(uint8_t* buffer, size_t buffer_size, size_t* rxd_size, uint32_t timeout_ms) {
     this->begin_rx_only_mode();
-    
-    // RingbufHandle_t rb = nullptr;
-    // rmt_get_ringbuf_handle(RMT_RX_CHANNEL, &this->rx_ring_buff);
 
     rmt_rx_start(RMT_RX_CHANNEL, true);
     unsigned long start_time = millis();
-    unsigned long rx_timeout = 3000;
+    unsigned long rx_timeout = 3000; // TODO timeout_ms
     bool gotComplete = false;
-    uint8_t parsed_size = 0;            
+    int parsed_size = 0;
     uint8_t MAXSIZE = 255;
-    uint8_t databuff[MAXSIZE+1] = {0};
+    uint8_t databuff[MAXSIZE] = {0};
+    size_t conveyed_size = 0;
 
 
     while (true) {
@@ -215,27 +241,25 @@ err RF433::_tryRx(uint8_t* buffer, size_t buffer_size, size_t* rxd_size, uint32_
         size_t rx_size     = 0;
         rmt_item32_t* item = (rmt_item32_t*)xRingbufferReceive(this->rx_ring_buff, &rx_size, 500);
 
-        // START HERE always null item
         // Serial.printf("---------\r\n");
         if (item == nullptr) {
             Serial.println("RX TIMEOUT 1");
             break; // timeout occurred, exit the loop
         }
         if (rx_size != 0) {
-            databuff[MAXSIZE+1] = {0}; // reset
+            memset(databuff, 0, sizeof(databuff)); // reset
             rx_size = rx_size / sizeof(rmt_item32_t); // convert from bytes to number of RMT items
 
-            uint8_t conveyed_data_len = 0;
-            parsed_size = parsedData(item, &conveyed_data_len, rx_size, databuff, MAXSIZE);
+            parsed_size = parsedData(item, rx_size, databuff, MAXSIZE);
             Serial.println("---------");
-            Serial.printf("\r\nConveyed data length: %d, Parsed size: %d\r\n", conveyed_data_len, parsed_size);
+            Serial.printf("\r\nParsed size: %d\r\n", parsed_size);
             Serial.printf("Parsed something: databuff: ");
             for (int i = 0; i < parsed_size; i++) {
                 Serial.printf("%02X ", databuff[i]);
             }
-            if (validatedData(conveyed_data_len, parsed_size, databuff, expected_data_len, expected_data)) {
-                Serial.printf("Data has correct length, content, etc. as expected by caller.\r\n");
-                Serial.printf("Parsed Data (%d bytes): \n", parsed_size);
+            if (validatedData(parsed_size, databuff, &conveyed_size)) {
+                Serial.printf("Data has correct length, header. \r\n");
+                Serial.printf("Parsed Data (incl header) (%d bytes): \n", parsed_size);
                 for (int i = 0; i < parsed_size; i++) {
                     Serial.printf("%02X ", databuff[i]);
                 }
@@ -250,14 +274,22 @@ err RF433::_tryRx(uint8_t* buffer, size_t buffer_size, size_t* rxd_size, uint32_
         vRingbufferReturnItem(this->rx_ring_buff, (void*)item);
         if (gotComplete) {
             Serial.println("RECEIVED VALID DATA. exiting rx attempt");
-            memcpy(buffer, databuff, parsed_size);
-            *rxd_size = parsed_size;
+            if (buffer == nullptr || rxd_size == nullptr || conveyed_size > buffer_size) {
+                rmt_rx_stop(RMT_RX_CHANNEL);
+                return err::buffer_overflow;
+            }
+
+            memcpy(buffer, databuff + SYNC_HEADER_SIZE + LEN_FIELD_SIZE, conveyed_size);
+            *rxd_size = conveyed_size;
+            rmt_rx_stop(RMT_RX_CHANNEL);
+            Serial.println("RMT RX stopped - SUCCESS");
             return err::none;
         }
 
     }
     rmt_rx_stop(RMT_RX_CHANNEL);
-    Serial.println("RMT RX stopped.");
+    Serial.println("RMT RX stopped - EDGE CASE");
+    return err::waiting;
 }
 
 

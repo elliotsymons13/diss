@@ -56,17 +56,27 @@ void loop() {
         switch (rf433.receiveOne((uint8_t*)buffer, sizeof(buffer), &rxd_size, 5000)) {
             case err::none: // packet rx'd successfully 
                 Serial.printf("RF433 Packet received (%d bytes)\r\n", rxd_size);
+                Serial.print("Payload: ");
+                for (size_t i = 0; i < rxd_size; ++i) {
+                    Serial.printf("%02X ", buffer[i]);
+                }
+                Serial.println();
                 break;
             case err::timeout_expired:
-                Serial.println("Nothing RF433 received within 5s timeout. "); 
+                Serial.println("Nothing RF433 received within timeout. "); 
                 break;
             case err::buffer_overflow:
                 Serial.println("Buffer overflow occurred while receiving RF433 packet.");
                 break;
+            case err::waiting:
+                // TODO Could do other things now, but this example will just loop and try again.
+                break;
+            default:
+                Serial.println("Unsupported error occurred while receiving RF433 packet.");
+                break;
         }
         delay(10);
         M5.update();
-        // TODO Could do other things now, but this example will just loop and try again.
     }
 #endif // USE_LORA
 }
