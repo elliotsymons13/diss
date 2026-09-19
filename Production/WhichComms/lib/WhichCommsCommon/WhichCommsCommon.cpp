@@ -23,12 +23,22 @@ void block_forever() {
     }
 }
 
-void setup_common_lora868(LoRa868* lora) {
+bool setup_common_lora868(LoRa868* lora) {
 
-    lora->pre_config();
-    lora->begin_duplex_mode();
-    lora->post_config();
-
+    if (!lora->pre_config()) {
+        Serial.println("Failed to pre-configure LoRa868. ");
+        return false;
+    }
+    if (!lora->begin_duplex_mode()) {
+        Serial.println("Failed to initialize LoRa868 in duplex mode. ");
+        return false;
+    }
+    if (!lora->post_config()) {
+        Serial.println("Failed to post-configure LoRa868. ");
+        return false;
+    }
+    
     M5_SX127X lora_impl = lora->unwrap(); // TODO rm test
     // lora_impl.setFrequency(433E6); 
+    return true;
 }
