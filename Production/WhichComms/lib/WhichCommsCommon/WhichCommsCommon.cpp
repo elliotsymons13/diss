@@ -24,7 +24,6 @@ void block_forever() {
 }
 
 void setup_common_lora868(LoRa868* lora) {
-    await_serial();
 
     lora->pre_config();
     lora->begin_duplex_mode();

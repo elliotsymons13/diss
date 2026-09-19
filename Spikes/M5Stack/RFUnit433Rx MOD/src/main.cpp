@@ -183,7 +183,6 @@ void receiveValidateOnce(RingbufHandle_t* rb, uint8_t* received_count) {
 
         size_t rx_size     = 0;
         rmt_item32_t* item = (rmt_item32_t*)xRingbufferReceive(*rb, &rx_size, 500);
-        // Serial.printf("---------\r\n");
         if (item == nullptr) {
             Serial.println("RX TIMEOUT 1");
             break; // timeout occurred, exit the loop

@@ -136,8 +136,8 @@ bool RF433::send(const uint8_t* data, size_t buffer_size) {
  */
 int parsedData(rmt_item32_t* item, size_t rx_size, uint8_t* dataptr, size_t maxsize)
 {
-    if((item == nullptr)||(rx_size < 4))return -1;
-    if (rx_size < 4) return -1;
+    if (item == nullptr) return -2;
+    if (rx_size < 4) return -1; // START HERE always hitting this, getting -1 - why is rx_size so small?
     // Serial.printf("rx_size:%d\r\n", rx_size);
     unsigned int cnt        = 0;
     uint8_t data   = 0;
@@ -224,7 +224,6 @@ err RF433::_tryRx(uint8_t* buffer, size_t buffer_size, size_t* rxd_size, uint32_
 
     rmt_rx_start(RMT_RX_CHANNEL, true);
     unsigned long start_time = millis();
-    unsigned long rx_timeout = 3000; // TODO timeout_ms
     bool gotComplete = false;
     int parsed_size = 0;
     uint8_t MAXSIZE = 255;
@@ -233,7 +232,7 @@ err RF433::_tryRx(uint8_t* buffer, size_t buffer_size, size_t* rxd_size, uint32_
 
 
     while (true) {
-        if ((millis() - start_time >= rx_timeout)) {
+        if ((millis() - start_time >= timeout_ms)) {
             Serial.println("RX TIMEOUT 2 - FAILSAFE, should not occur in normal operation");
             return err::timeout_expired;
         }
@@ -248,16 +247,19 @@ err RF433::_tryRx(uint8_t* buffer, size_t buffer_size, size_t* rxd_size, uint32_
         }
         if (rx_size != 0) {
             memset(databuff, 0, sizeof(databuff)); // reset
+            Serial.println("---------");
+            Serial.printf("RX size: %d\r\n", rx_size);
             rx_size = rx_size / sizeof(rmt_item32_t); // convert from bytes to number of RMT items
+            Serial.printf("RX size (in RMT items): %d\r\n", rx_size);
 
             parsed_size = parsedData(item, rx_size, databuff, MAXSIZE);
-            Serial.println("---------");
             Serial.printf("\r\nParsed size: %d\r\n", parsed_size);
             Serial.printf("Parsed something: databuff: ");
             for (int i = 0; i < parsed_size; i++) {
                 Serial.printf("%02X ", databuff[i]);
             }
-            if (validatedData(parsed_size, databuff, &conveyed_size)) {
+            Serial.println();
+            if (parsed_size > 0 && validatedData(parsed_size, databuff, &conveyed_size)) {
                 Serial.printf("Data has correct length, header. \r\n");
                 Serial.printf("Parsed Data (incl header) (%d bytes): \n", parsed_size);
                 for (int i = 0; i < parsed_size; i++) {
@@ -266,8 +268,10 @@ err RF433::_tryRx(uint8_t* buffer, size_t buffer_size, size_t* rxd_size, uint32_
                 Serial.println();
                 gotComplete = true;
                 // (*received_count)++;
+            } else if (parsed_size > 0) {
+                Serial.printf("INVALID DATA RECEIVED (but non-zero parsed_size = %d).\r\n", parsed_size);
             } else {
-                Serial.printf("INVALID DATA RECEIVED.\r\n");
+                Serial.printf("NO DATA PARSED (parsed_size = %d).\r\n", parsed_size);
             }
             
         }
@@ -288,7 +292,7 @@ err RF433::_tryRx(uint8_t* buffer, size_t buffer_size, size_t* rxd_size, uint32_
 
     }
     rmt_rx_stop(RMT_RX_CHANNEL);
-    Serial.println("RMT RX stopped - EDGE CASE");
+    Serial.println("RMT RX stopped - Timeout");
     return err::waiting;
 }
 

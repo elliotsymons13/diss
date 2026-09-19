@@ -78,7 +78,6 @@ bool _tryRx(uint8_t* buffer, size_t buffer_size, size_t* rxd_size) {
     return true; // packet received
 }
 
-// TODO try porting impl to OneComms.cpp, as common
 err LoRa868::receiveOne(uint8_t* buffer, size_t buffer_size, size_t* rxd_size) {
     return receiveOne(buffer, buffer_size, rxd_size, 0);
 }
