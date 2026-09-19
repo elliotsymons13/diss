@@ -120,10 +120,10 @@ bool RF433::send(const uint8_t* data, size_t buffer_size) {
     Serial.println();
     const uint32_t rmt_items = 2 + packet_len_with_header * 8; // RMT protocol has 2 leading items (start codes) and then 8 items per byte of data
     Serial.printf("Sending packet -  %d bytes encoded in %u RMT items\n", buffer_size, rmt_items);
-    // for (int i = 0; i < 3; i++) { // HACK sending three times
+    for (int i = 0; i < 3; i++) { // HACK? sending three times - rx only seems to work if I do this. may be a poor lib, poor hardware, but this works
         ESP_ERROR_CHECK(rmt_write_items(RMT_TX_CHANNEL, rmtbuff, rmt_items, false));
         ESP_ERROR_CHECK(rmt_wait_tx_done(RMT_TX_CHANNEL, portMAX_DELAY));
-    // }
+    }
 
     return true;
 }
@@ -200,12 +200,16 @@ bool validatedData(size_t parsed_size, uint8_t* databuff, size_t *conveyed_size)
     }
     
     // check header
+    bool header_valid = true;
     size_t i = 0;
     for (; i < SYNC_HEADER_SIZE; i++) {
         if (databuff[i] != header[i]) {
             Serial.printf("Header data mismatch at index %d: expected 0x%02X, got 0x%02X\r\n", i, header[i], databuff[i]);
-            return false;
+            header_valid = false;
         }
+    }
+    if (!header_valid) { // done like this to ensure full header is printed
+        return false;
     }
 
     // check size conveyed against parsed size

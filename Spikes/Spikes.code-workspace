@@ -25,18 +25,23 @@
 			"path": "M5Stack/251218-175841-UserInterface-m5stack-cores3"
 		},
 		{
+			"name": "RFUnit433Rx MOD",
 			"path": "M5Stack/RFUnit433Rx MOD"
 		},
 		{
+			"name": "RFUnit433Tx MOD",
 			"path": "M5Stack/RFUnit433Tx MOD"
 		},
 		{
+			"name": "LoRaModule868Rx MOD",
 			"path": "M5Stack/LoRaModule868Rx MOD"
 		},
 		{
+			"name": "LoRaModule868Tx MOD",
 			"path": "M5Stack/LoRaModule868Tx MOD"
 		},
 		{
+			"name": "Production",
 			"path": "../Production"
 		},
 		{
@@ -44,6 +49,7 @@
 			"path": "../Production/WhichComms"
 		},
 		{
+			"name": "Dissertation report",
 			"path": "../../Dissertation report"
 		}
 	],
