@@ -66,14 +66,13 @@ bool _tryRx(uint8_t* buffer, size_t buffer_size, size_t* rxd_size) {
             return false; // buffer too small for packet 
             // TODO return codes
         }
-        Serial.print(c);
+        Serial.printf("%02X", c);
     }
 
     // print RSSI of packet
     Serial.print("' with RSSI ");
     Serial.println(LoRa.packetRssi());
 
-    // TODO populate buffer & size
     *rxd_size = next_byte_pos;
     return true; // packet received
 }

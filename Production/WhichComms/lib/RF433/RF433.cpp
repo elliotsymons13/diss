@@ -237,7 +237,7 @@ err RF433::_tryRx(uint8_t* buffer, size_t buffer_size, size_t* rxd_size, uint32_
 
     while (true) {
         if ((millis() - start_time >= timeout_ms)) {
-            Serial.println("RX TIMEOUT 2 - FAILSAFE, should not occur in normal operation");
+            Serial.println("RX TIMEOUT 2");
             return err::timeout_expired;
         }
 

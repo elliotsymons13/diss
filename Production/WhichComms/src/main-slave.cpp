@@ -6,6 +6,7 @@ LoRa868 lora;
 RF433 rf433;
 
 #define RX_WAIT_TIME 500
+#define RX_BUFF_SIZE 256
 
 void setup() {
     M5.begin();
@@ -31,7 +32,7 @@ void setup() {
 
 void loop() {
 
-    uint8_t buffer[256] = {0}; // arbitrary length, but library will handle any buffer overflow internally
+    uint8_t buffer[RX_BUFF_SIZE] = {0}; // arbitrary length, but library will handle any buffer overflow internally
     size_t rxd_size = 0;
     Serial.print("SLAVE Awaiting LoRa or RF433 packet. ");
     while (true) {
@@ -41,11 +42,14 @@ void loop() {
         rxd_size = 0; 
         switch (lora.receiveOne((uint8_t*)buffer, sizeof(buffer), &rxd_size, RX_WAIT_TIME)) {
             case err::none: // packet rx'd successfully 
-                Serial.printf("Packet received (%d bytes)\r\n", rxd_size);
+                Serial.printf("Packet received (%d bytes), echoing back\r\n", rxd_size);
                 // TODO switch on packet contents e.g. RTT response
+                Serial.print("LoRa868 trigger+response payload: ");
+                log_bytes(buffer, rxd_size);
+                lora.send(buffer, rxd_size); // echo back the received packet
                 break;
             case err::timeout_expired:
-                Serial.println("Nothing received within 5s timeout. Could do other things now, but this example will just loop and try again. "); // nothing rx'd
+                Serial.println("Nothing received within timeout. Could do other things now, but this example will just loop and try again. "); // nothing rx'd
                 break;
         }
 
@@ -54,13 +58,11 @@ void loop() {
         rxd_size = 0; 
         switch (rf433.receiveOne((uint8_t*)buffer, sizeof(buffer), &rxd_size, RX_WAIT_TIME)) {
             case err::none: // packet rx'd successfully 
-                Serial.printf("RF433 Packet received (%d bytes)\r\n", rxd_size);
-                Serial.print("Payload: ");
-                for (size_t i = 0; i < rxd_size; ++i) {
-                    Serial.printf("%02X ", buffer[i]);
-                }
-                Serial.println();
+                Serial.printf("RF433 Packet received (%d bytes), echoing back\r\n", rxd_size);
                 // TODO switch on packet contents e.g. RTT response
+                Serial.print("RF433 trigger payload: ");
+                log_bytes(buffer, rxd_size);
+                rf433.send(buffer, rxd_size); // echo back the received packet
                 break;
             case err::timeout_expired:
                 Serial.println("Nothing RF433 received within timeout. "); 
