@@ -10,7 +10,7 @@ RF433 rf433;
 
 void setup() {
     M5.begin();
-    LOG_SET_LEVEL(DebugLogLevel::LVL_DEBUG);
+    LOG_SET_LEVEL(GLOBAL_LOG_LEVEL);
     await_serial(); // must await serial before setup, so failures can be logged
 
     if (!setup_common_lora868(&lora)) {
@@ -46,7 +46,6 @@ void loop() {
                 LOG_DEBUG("Packet received", rxd_size, "bytes, echoing back");
                 // TODO switch on packet contents e.g. RTT response
                 LOG_TRACE("LoRa868 trigger+response payload:");
-                log_bytes(buffer, rxd_size);
                 lora.send(buffer, rxd_size); // echo back the received packet
                 break;
             case err::timeout_expired:

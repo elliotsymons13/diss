@@ -2,8 +2,11 @@
 #define EVERYWHERE_COMMON_H
 
 #include <DebugLog.h>
+const DebugLogLevel GLOBAL_LOG_LEVEL = DebugLogLevel::LVL_DEBUG;
 
 void log_bytes(uint8_t* buff, size_t len);
+bool equal(uint8_t* buff_a, uint8_t* buff_b, size_t len);
+
 
 enum class err {
     none,

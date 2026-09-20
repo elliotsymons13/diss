@@ -19,7 +19,7 @@ void block_forever() {
     LOG_ERROR("BLOCKING forever due to unrecoverable error.");
     while (true) {
         delay(1000);
-        Serial.print(".");\
+        Serial.print(".");
     }
 }
 
@@ -43,11 +43,3 @@ bool setup_common_lora868(LoRa868* lora) {
     return true;
 }
 
-bool equal(uint8_t* buff_a, uint8_t* buff_b, size_t len) {
-    for (size_t i = 0; i < len; i++) {
-        if (buff_a[i] != buff_b[i]) {
-            return false;
-        }
-    }
-    return true;
-}

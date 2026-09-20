@@ -1,6 +1,7 @@
 
 
 #include <WhichCommsCommon.h>
+#include <WhichCommsMetrics.h>
 #include "M5Unified.h"
 
 LoRa868 lora; 
@@ -11,7 +12,7 @@ RF433 rf433;
 
 void setup() {
     M5.begin();
-    LOG_SET_LEVEL(DebugLogLevel::LVL_DEBUG);
+    LOG_SET_LEVEL(GLOBAL_LOG_LEVEL);
     await_serial(); // must await serial before setup, so failures can be logged
 
     if (!setup_common_lora868(&lora)) {
@@ -32,10 +33,10 @@ void setup() {
 
 }
 
-uint8_t counter = 0;
-int counter_start_time[256] = {0}; // indexed by uint8_t counter value (0-255)
+
 void loop() {
 
+    WhichCommsMetrics lora868metrics;
 
     LOG_DEBUG("MASTER entering main loop");
     while (true) {
@@ -54,16 +55,17 @@ void loop() {
 
         // RTT trigger message
         const size_t tx_data_len = 6;
-        const uint8_t tx_data[tx_data_len] = {0xFF, 0x00, 0xFF, 0x00, 0xFF, counter};
+        const uint8_t tx_data[tx_data_len] = {0xFF, 0x00, 0xFF, 0x00, 0xFF, lora868metrics.get_counter()};
         
         // LoRa868 send 
-        LOG_DEBUG("SENDING LoRa868 with counter", counter);
+        LOG_DEBUG("SENDING LoRa868 RTT ping with counter", lora868metrics.get_counter());
         lora.send(tx_data, tx_data_len);
-        counter_start_time[counter++] = micros();
-        LOG_DEBUG("SENT LoRa868 with counter", counter);
+        lora868metrics.start_rtt();
+        LOG_DEBUG("SENT LoRa868 RTT ping with counter", lora868metrics.get_counter());
+        lora868metrics.increment_counter();
 
         // LoRa868 receive response
-        LOG_DEBUG("WAITING LoRa868 response for message (counter", counter, ")");
+        LOG_DEBUG("WAITING for any LoRa868 RTT response (including out of sequence). ");
         uint8_t rx_buffer[RX_BUFF_SIZE] = {0};
         size_t rxd_size = 0;
         switch(lora.receiveOne((uint8_t*)rx_buffer, sizeof(rx_buffer), &rxd_size, RX_WAIT_TIME)) {
@@ -72,29 +74,13 @@ void loop() {
                 LOG_TRACE("LoRa868 received response, length", rxd_size);
                 LOG_TRACE("LoRa868 response payload:");
                 log_bytes(rx_buffer, rxd_size);
-                if (rxd_size == tx_data_len) {
-                    size_t packet_len_without_counter = rxd_size - 1;
-                    if (equal(rx_buffer, (uint8_t*)tx_data, packet_len_without_counter)) {
-                        LOG_TRACE("LoRa868 response matches sent data, excluding counter.");
-
-                        // handle lost packets
-                        uint8_t received_counter = rx_buffer[rxd_size - 1];
-                        if (received_counter > counter) {
-                            LOG_TRACE("LoRa868 received counter", received_counter, "is greater than sent counter", counter);
-                            uint8_t lost_packets = received_counter - counter;
-                            LOG_INFO("Some PING,ACK packet transactions ()", lost_packets, ") have been lost (approx).");
+                {
+                    int rtt = 0;
+                    if(lora868metrics.complete_rtt((uint8_t*)tx_data, tx_data_len, rx_buffer, rxd_size, &rtt)) {
+                        if (rtt > 0) {
+                            LOG_INFO("LoRa868 RTT was", rtt, "microseconds.");
                         }
-                        // TODO uint8 underflow lost packet cleanup case
-
-                        // calculate RTT time
-                        int rtt_time = micros() - counter_start_time[received_counter];
-                        LOG_INFO("LoRa868 RTT for message (counter", received_counter, ") is", rtt_time, "micros.");
-
-                    } else {
-                        LOG_TRACE("LoRa868 response does NOT match sent data.");
                     }
-                } else {
-                    LOG_TRACE("LoRa868 response length", rxd_size, "does NOT match sent data length", tx_data_len, ". Ignoring.");
                 }
                 break;
             case err::timeout_expired:

@@ -100,7 +100,7 @@ bool RF433::send(const uint8_t* data, size_t buffer_size) {
             rmtbuff[2 + i * 8 + n] = ((header[i] & mark)) ? ((rmt_item32_t){RMT_CODE_H}) : ((rmt_item32_t){RMT_CODE_L});
             mark >>= 1;
         }
-        Serial.printf("%02X ", header[i]);
+        if (GLOBAL_LOG_LEVEL == DebugLogLevel::LVL_TRACE) Serial.printf("%02X ", header[i]);
     }
     // length field
     for (; i < SYNC_HEADER_SIZE + LEN_FIELD_SIZE; i++) {
@@ -109,7 +109,7 @@ bool RF433::send(const uint8_t* data, size_t buffer_size) {
             rmtbuff[2 + i * 8 + n] = ((size[i-SYNC_HEADER_SIZE] & mark)) ? ((rmt_item32_t){RMT_CODE_H}) : ((rmt_item32_t){RMT_CODE_L});
             mark >>= 1;
         }
-        Serial.printf("%02X ", size[i-SYNC_HEADER_SIZE]);
+        if (GLOBAL_LOG_LEVEL == DebugLogLevel::LVL_TRACE) Serial.printf("%02X ", size[i-SYNC_HEADER_SIZE]);
     }
     // variable length body
     for (; i < packet_len_with_header; i++) {
@@ -118,9 +118,9 @@ bool RF433::send(const uint8_t* data, size_t buffer_size) {
             rmtbuff[2 + i * 8 + n] = ((data[i-SYNC_HEADER_SIZE-LEN_FIELD_SIZE] & mark)) ? ((rmt_item32_t){RMT_CODE_H}) : ((rmt_item32_t){RMT_CODE_L});
             mark >>= 1;
         }
-        Serial.printf("%02X ", data[i-SYNC_HEADER_SIZE-LEN_FIELD_SIZE]);
+        if (GLOBAL_LOG_LEVEL == DebugLogLevel::LVL_TRACE) Serial.printf("%02X ", data[i-SYNC_HEADER_SIZE-LEN_FIELD_SIZE]);
     }
-    Serial.println();
+    if (GLOBAL_LOG_LEVEL == DebugLogLevel::LVL_TRACE) Serial.println();
     const uint32_t rmt_items = 2 + packet_len_with_header * 8; // RMT protocol has 2 leading items (start codes) and then 8 items per byte of data
     LOG_TRACE("Sending packet -", buffer_size, "bytes encoded in", rmt_items, "RMT items");
     for (int i = 0; i < 3; i++) { // HACK? sending three times - rx only seems to work if I do this. may be a poor lib, poor hardware, but this works
@@ -165,7 +165,7 @@ int parsedData(rmt_item32_t* item, size_t rx_size, uint8_t* dataptr, size_t maxs
                     if (bitcnt >= 8) { // i.e. if byte complete
                         LOG_TRACE("byte:", byte_cnt, "=", data); // print the byte in hex (2 digits)
                         if (byte_cnt >= maxsize) {
-                            LOG_WARN("Buffer overflow, maxsize=", maxsize, ". Printing partial rx only.");
+                            LOG_WARN("Buffer overflow, maxsize=", maxsize, ". Partial rx only.");
                             return byte_cnt;
                         }
                         dataptr[byte_cnt] = data;
@@ -199,7 +199,7 @@ bool validatedData(size_t parsed_size, uint8_t* databuff, size_t *conveyed_size)
             header_valid = false;
         }
     }
-    if (!header_valid) { // done like this to ensure full header is printed
+    if (!header_valid) { // done like this to ensure full header is to trace in event of errors
         return false;
     }
 
