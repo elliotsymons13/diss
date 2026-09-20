@@ -18,6 +18,5 @@ void await_serial();
 void block_forever();
 bool setup_common_lora868(LoRa868* lora);
 bool equal(uint8_t* buff_a, uint8_t* buff_b, size_t len);
-void log_bytes(uint8_t* buff, size_t len);
 
 #endif // WHICHCOMMSCOMMON_H

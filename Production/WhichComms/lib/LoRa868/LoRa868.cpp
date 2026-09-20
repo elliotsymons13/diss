@@ -8,27 +8,27 @@ bool LoRa868::pre_config() {
 }
 
 bool LoRa868::begin_duplex_mode() { // TODO some design pattern to prevent these being called if Serial.begin not called yet?
-    Serial.println("LoRa init start. ");
+    LOG_TRACE("LoRa init start.");
     uint8_t attempts = 0;
     while (!LoRa.begin(LORA_FREQ) & attempts++ <= MAX_LORA_INIT_ATTEMPTS) {
-        Serial.println("LoRa init fail.");
+        LOG_WARN("LoRa init fail.");
         delay(LORA_INIT_ATTEMPT_DELAY_MS);
     }
     if (attempts >= MAX_LORA_INIT_ATTEMPTS) {
-        Serial.printf("LoRa init still failing after maximum attempts (%d).", MAX_LORA_INIT_ATTEMPTS);
+        LOG_ERROR("LoRa init still failing after maximum attempts", MAX_LORA_INIT_ATTEMPTS);
         return false;
     }
-    Serial.printf("LoRa init success on attempt %d. \n", attempts);
+    LOG_DEBUG("LoRa init success on attempt", attempts);
     return true;
 }
 
 bool LoRa868::begin_rx_only_mode() {
-    Serial.println("LoRa868 bearer functions in duplex mode, and does not support RX-only mode. Invoking begin_duplex_mode instead. ");
+    LOG_WARN("LoRa868 bearer functions in duplex mode, and does not support RX-only mode. Invoking begin_duplex_mode instead.");
     return this->begin_duplex_mode();
 }
 
 bool LoRa868::begin_tx_only_mode() {
-    Serial.println("LoRa868 bearer functions in duplex mode, and does not support TX-only mode. Invoking begin_duplex_mode instead. ");
+    LOG_WARN("LoRa868 bearer functions in duplex mode, and does not support TX-only mode. Invoking begin_duplex_mode instead.");
     return this->begin_duplex_mode();
 }
 
@@ -52,7 +52,7 @@ bool _tryRx(uint8_t* buffer, size_t buffer_size, size_t* rxd_size) {
         return false;
     }
     // received a packet
-    Serial.print("Received packet '");
+    LOG_TRACE("Received packet");
 
     // read packet
     unsigned int next_byte_pos = 0;
@@ -61,17 +61,15 @@ bool _tryRx(uint8_t* buffer, size_t buffer_size, size_t* rxd_size) {
         if (next_byte_pos < buffer_size) {
             buffer[next_byte_pos++] = c;
         } else {
-            Serial.println("Buffer too small for packet. Packet truncated.");
+            LOG_WARN("Buffer too small for packet. Packet truncated.");
             *rxd_size = next_byte_pos;
             return false; // buffer too small for packet 
             // TODO return codes
         }
-        Serial.printf("%02X", c);
     }
 
     // print RSSI of packet
-    Serial.print("' with RSSI ");
-    Serial.println(LoRa.packetRssi());
+    LOG_INFO("Packet RSSI", LoRa.packetRssi());
 
     *rxd_size = next_byte_pos;
     return true; // packet received

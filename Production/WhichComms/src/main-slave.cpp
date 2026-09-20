@@ -10,20 +10,21 @@ RF433 rf433;
 
 void setup() {
     M5.begin();
+    LOG_SET_LEVEL(DebugLogLevel::LVL_DEBUG);
     await_serial(); // must await serial before setup, so failures can be logged
 
     if (!setup_common_lora868(&lora)) {
-        Serial.println("Critical error. BLOCKING. ");
+        LOG_ERROR("Critical error. BLOCKING.");
         block_forever();
     }
     
     rf433.pre_config();
     if (!rf433.begin_tx_only_mode()) {
-        Serial.println("Failed to test initialize TX RF433. ");
+        LOG_ERROR("Failed to test initialize TX RF433.");
         block_forever();
     }
     if (!rf433.begin_rx_only_mode()) {
-        Serial.println("Failed to test initialize RX RF433. ");
+        LOG_ERROR("Failed to test initialize RX RF433.");
         block_forever();
     }
     rf433.post_config();
@@ -34,7 +35,7 @@ void loop() {
 
     uint8_t buffer[RX_BUFF_SIZE] = {0}; // arbitrary length, but library will handle any buffer overflow internally
     size_t rxd_size = 0;
-    Serial.print("SLAVE Awaiting LoRa or RF433 packet. ");
+    LOG_INFO("SLAVE Awaiting LoRa or RF433 packet.");
     while (true) {
 
         // LoRa868 test case 
@@ -42,14 +43,14 @@ void loop() {
         rxd_size = 0; 
         switch (lora.receiveOne((uint8_t*)buffer, sizeof(buffer), &rxd_size, RX_WAIT_TIME)) {
             case err::none: // packet rx'd successfully 
-                Serial.printf("Packet received (%d bytes), echoing back\r\n", rxd_size);
+                LOG_DEBUG("Packet received", rxd_size, "bytes, echoing back");
                 // TODO switch on packet contents e.g. RTT response
-                Serial.print("LoRa868 trigger+response payload: ");
+                LOG_TRACE("LoRa868 trigger+response payload:");
                 log_bytes(buffer, rxd_size);
                 lora.send(buffer, rxd_size); // echo back the received packet
                 break;
             case err::timeout_expired:
-                Serial.println("Nothing received within timeout. Could do other things now, but this example will just loop and try again. "); // nothing rx'd
+                LOG_TRACE("Nothing received within timeout. Could do other things now, but this example will just loop and try again."); // nothing rx'd
                 break;
         }
 
@@ -58,23 +59,23 @@ void loop() {
         rxd_size = 0; 
         switch (rf433.receiveOne((uint8_t*)buffer, sizeof(buffer), &rxd_size, RX_WAIT_TIME)) {
             case err::none: // packet rx'd successfully 
-                Serial.printf("RF433 Packet received (%d bytes), echoing back\r\n", rxd_size);
+                LOG_DEBUG("RF433 Packet received", rxd_size, "bytes, echoing back");
                 // TODO switch on packet contents e.g. RTT response
-                Serial.print("RF433 trigger payload: ");
+                LOG_TRACE("RF433 trigger payload:");
                 log_bytes(buffer, rxd_size);
                 rf433.send(buffer, rxd_size); // echo back the received packet
                 break;
             case err::timeout_expired:
-                Serial.println("Nothing RF433 received within timeout. "); 
+                LOG_TRACE("Nothing RF433 received within timeout."); 
                 break;
             case err::buffer_overflow:
-                Serial.println("Buffer overflow occurred while receiving RF433 packet.");
+                LOG_WARN("Buffer overflow occurred while receiving RF433 packet.");
                 break;
             case err::waiting:
                 // TODO Could do other things now, but this example will just loop and try again.
                 break;
             default:
-                Serial.println("Unsupported error occurred while receiving RF433 packet.");
+                LOG_ERROR("Unsupported error occurred while receiving RF433 packet.");
                 break;
         }
         // delay(10);

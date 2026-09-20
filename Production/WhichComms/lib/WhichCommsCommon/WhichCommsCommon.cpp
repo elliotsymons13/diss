@@ -10,13 +10,13 @@ void await_serial() {
     }   
     #endif // DEBUG_MODE
     delay(500);
-    Serial.println("Serial connected. ");
+    LOG_DEBUG("Serial connected.");
 
     // Serial.printf("Last reset reason: %d\n", esp_reset_reason());
 }
 
 void block_forever() {
-    Serial.println("BLOCKING forever due to unrecoverable error. ");
+    LOG_ERROR("BLOCKING forever due to unrecoverable error.");
     while (true) {
         delay(1000);
         Serial.print(".");\
@@ -26,15 +26,15 @@ void block_forever() {
 bool setup_common_lora868(LoRa868* lora) {
 
     if (!lora->pre_config()) {
-        Serial.println("Failed to pre-configure LoRa868. ");
+        LOG_ERROR("Failed to pre-configure LoRa868.");
         return false;
     }
     if (!lora->begin_duplex_mode()) {
-        Serial.println("Failed to initialize LoRa868 in duplex mode. ");
+        LOG_ERROR("Failed to initialize LoRa868 in duplex mode.");
         return false;
     }
     if (!lora->post_config()) {
-        Serial.println("Failed to post-configure LoRa868. ");
+        LOG_ERROR("Failed to post-configure LoRa868.");
         return false;
     }
     
@@ -50,11 +50,4 @@ bool equal(uint8_t* buff_a, uint8_t* buff_b, size_t len) {
         }
     }
     return true;
-}
-
-void log_bytes(uint8_t* buff, size_t len) {
-    for (size_t i = 0; i < len; i++) {
-        Serial.printf("%02X ", buff[i]);
-    }
-    Serial.println();
 }

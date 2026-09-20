@@ -11,85 +11,111 @@ RF433 rf433;
 
 void setup() {
     M5.begin();
+    LOG_SET_LEVEL(DebugLogLevel::LVL_DEBUG);
     await_serial(); // must await serial before setup, so failures can be logged
 
     if (!setup_common_lora868(&lora)) {
-        Serial.println("Critical error. BLOCKING. ");
+        LOG_ERROR("Critical error. BLOCKING.");
         block_forever();
     }
     
     rf433.pre_config();
     if (!rf433.begin_tx_only_mode()) {
-        Serial.println("Failed to test initialize TX RF433. ");
+        LOG_ERROR("Failed to test initialize TX RF433.");
         block_forever();
     }
     if (!rf433.begin_rx_only_mode()) {
-        Serial.println("Failed to test initialize RX RF433. ");
+        LOG_ERROR("Failed to test initialize RX RF433.");
         block_forever();
     }
     rf433.post_config();
 
 }
 
+uint8_t counter = 0;
+int counter_start_time[256] = {0}; // indexed by uint8_t counter value (0-255)
 void loop() {
 
 
-    Serial.println("MASTER entering main loop ");
+    LOG_DEBUG("MASTER entering main loop");
     while (true) {
 
-        // TODO func: make message sent the exact same for both bearers
-        // TODO func: send then wait for response
-        // TODO func: add timer
+        // TODO do this for RF433 also
+        // DONE add counter on send, to ensure the response back is matched correctly THEN add timer
+        // DONE send then wait for response
+        // DONE add timer
+        // DONE add logger
+        // TODO make everything above into functions, with logger, tidy
+        // TODO fix millis() and micros() overflows at all occurances ref https://roboticsbackend.com/arduino-millis-vs-micros/
+        // TODO MUST add range test element e.g. for antenna testing talk in report. My RTT is a bit unfounded in science I am learning. it is mostly testing my code speed..
+        // TODO add UI to trigger each test
+        // TODO REPORT ONLY: add average rtt, but would need to account for lost packets somehow
         // TODO loop over bearers agnostically 
 
         // RTT trigger message
         const size_t tx_data_len = 6;
-        const uint8_t tx_data[tx_data_len] = {0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x06};
+        const uint8_t tx_data[tx_data_len] = {0xFF, 0x00, 0xFF, 0x00, 0xFF, counter};
         
         // LoRa868 send 
-        Serial.println("SENDING LoRa868");
+        LOG_DEBUG("SENDING LoRa868 with counter", counter);
         lora.send(tx_data, tx_data_len);
-        Serial.println("SENT LoRa868");
+        counter_start_time[counter++] = micros();
+        LOG_DEBUG("SENT LoRa868 with counter", counter);
 
         // LoRa868 receive response
-        Serial.println("WAITING LoRa868 response");
+        LOG_DEBUG("WAITING LoRa868 response for message (counter", counter, ")");
         uint8_t rx_buffer[RX_BUFF_SIZE] = {0};
         size_t rxd_size = 0;
         switch(lora.receiveOne((uint8_t*)rx_buffer, sizeof(rx_buffer), &rxd_size, RX_WAIT_TIME)) {
             case err::none:
-                Serial.println("LoRa868 packet received successfully.");
-                Serial.printf("LoRa868 received response, length %d\r\n", rxd_size);
-                Serial.print("LoRa868 response payload: ");
+                LOG_TRACE("LoRa868 packet received successfully.");
+                LOG_TRACE("LoRa868 received response, length", rxd_size);
+                LOG_TRACE("LoRa868 response payload:");
                 log_bytes(rx_buffer, rxd_size);
                 if (rxd_size == tx_data_len) {
-                    if (equal(rx_buffer, (uint8_t*)tx_data, rxd_size)) {
-                        Serial.println("LoRa868 response matches sent data.");
+                    size_t packet_len_without_counter = rxd_size - 1;
+                    if (equal(rx_buffer, (uint8_t*)tx_data, packet_len_without_counter)) {
+                        LOG_TRACE("LoRa868 response matches sent data, excluding counter.");
+
+                        // handle lost packets
+                        uint8_t received_counter = rx_buffer[rxd_size - 1];
+                        if (received_counter > counter) {
+                            LOG_TRACE("LoRa868 received counter", received_counter, "is greater than sent counter", counter);
+                            uint8_t lost_packets = received_counter - counter;
+                            LOG_INFO("Some PING,ACK packet transactions ()", lost_packets, ") have been lost (approx).");
+                        }
+                        // TODO uint8 underflow lost packet cleanup case
+
+                        // calculate RTT time
+                        int rtt_time = micros() - counter_start_time[received_counter];
+                        LOG_INFO("LoRa868 RTT for message (counter", received_counter, ") is", rtt_time, "micros.");
+
                     } else {
-                        Serial.println("LoRa868 response does NOT match sent data.");
+                        LOG_TRACE("LoRa868 response does NOT match sent data.");
                     }
                 } else {
-                    Serial.printf("LoRa868 response length (%d) does NOT match sent data length (%d). Ignoring. ", rxd_size, tx_data_len);
+                    LOG_TRACE("LoRa868 response length", rxd_size, "does NOT match sent data length", tx_data_len, ". Ignoring.");
                 }
                 break;
             case err::timeout_expired:
-                Serial.println("LoRa868 receive timed out.");
+                LOG_TRACE("LoRa868 receive timed out.");
                 break;
             case err::buffer_overflow:
-                Serial.println("LoRa868 buffer overflow occurred.");
+                LOG_WARN("LoRa868 buffer overflow occurred.");
                 break;
             case err::waiting:
-                Serial.println("LoRa868 waiting for packet.");
+                LOG_TRACE("LoRa868 waiting for packet.");
                 break;
             default:
-                Serial.println("LoRa868 unknown error occurred.");
+                LOG_ERROR("LoRa868 unknown error occurred.");
                 break;
         }
        
         
         // RF433
-        // Serial.println("SENDING RF433");
+        // LOG_DEBUG("SENDING RF433");
         // rf433.send(tx_data, tx_data_len);
-        // Serial.println("SENT RF433");
+        // LOG_DEBUG("SENT RF433");
 
         // TODO RF433 receive response
         

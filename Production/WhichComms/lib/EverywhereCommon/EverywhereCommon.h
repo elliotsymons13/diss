@@ -1,6 +1,10 @@
 #ifndef EVERYWHERE_COMMON_H
 #define EVERYWHERE_COMMON_H
 
+#include <DebugLog.h>
+
+void log_bytes(uint8_t* buff, size_t len);
+
 enum class err {
     none,
     waiting,
