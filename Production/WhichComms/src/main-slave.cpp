@@ -2,7 +2,7 @@
 #include <WhichCommsCommon.h>
 #include "M5Unified.h"
 
-LoRa868 lora;
+LoRa868 lora868;
 RF433 rf433;
 
 #define RX_WAIT_TIME 500
@@ -13,7 +13,7 @@ void setup() {
     LOG_SET_LEVEL(GLOBAL_LOG_LEVEL);
     await_serial(); // must await serial before setup, so failures can be logged
 
-    if (!setup_common_lora868(&lora)) {
+    if (!setup_common_lora868(&lora868)) {
         LOG_ERROR("Critical error. BLOCKING.");
         block_forever();
     }
@@ -41,12 +41,12 @@ void loop() {
         // LoRa868 test case 
         memset(buffer, 0, sizeof(buffer)); 
         rxd_size = 0; 
-        switch (lora.receiveOne((uint8_t*)buffer, sizeof(buffer), &rxd_size, RX_WAIT_TIME)) {
+        switch (lora868.receiveOne((uint8_t*)buffer, sizeof(buffer), &rxd_size, RX_WAIT_TIME)) {
             case err::none: // packet rx'd successfully 
                 LOG_DEBUG("Packet received", rxd_size, "bytes, echoing back");
                 // TODO switch on packet contents e.g. RTT response
                 LOG_TRACE("LoRa868 trigger+response payload:");
-                lora.send(buffer, rxd_size); // echo back the received packet
+                lora868.send(buffer, rxd_size); // echo back the received packet
                 break;
             case err::timeout_expired:
                 LOG_TRACE("Nothing received within timeout. Could do other things now, but this example will just loop and try again."); // nothing rx'd

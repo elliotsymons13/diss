@@ -16,6 +16,6 @@
 
 void await_serial();
 void block_forever();
-bool setup_common_lora868(LoRa868* lora);
+bool setup_common_lora868(LoRa868* lora868);
 
 #endif // WHICHCOMMSCOMMON_H

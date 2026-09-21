@@ -4,7 +4,7 @@
 #include <WhichCommsMetrics.h>
 #include "M5Unified.h"
 
-LoRa868 lora; 
+LoRa868 lora868; 
 RF433 rf433;
 
 #define RX_WAIT_TIME 700 // HACK must be greater than rx wait on slave side
@@ -15,7 +15,7 @@ void setup() {
     LOG_SET_LEVEL(GLOBAL_LOG_LEVEL);
     await_serial(); // must await serial before setup, so failures can be logged
 
-    if (!setup_common_lora868(&lora)) {
+    if (!setup_common_lora868(&lora868)) {
         LOG_ERROR("Critical error. BLOCKING.");
         block_forever();
     }
@@ -37,6 +37,7 @@ void setup() {
 void loop() {
 
     WhichCommsMetrics lora868metrics;
+    WhichCommsMetrics rf433metrics;
 
     LOG_DEBUG("MASTER entering main loop");
     while (true) {
@@ -46,29 +47,31 @@ void loop() {
         // DONE send then wait for response
         // DONE add timer
         // DONE add logger
-        // TODO make everything above into functions, with logger, tidy
+        // DONE make everything above into functions, with logger, tidy
         // TODO fix millis() and micros() overflows at all occurances ref https://roboticsbackend.com/arduino-millis-vs-micros/
         // TODO MUST add range test element e.g. for antenna testing talk in report. My RTT is a bit unfounded in science I am learning. it is mostly testing my code speed..
         // TODO add UI to trigger each test
         // TODO REPORT ONLY: add average rtt, but would need to account for lost packets somehow
         // TODO loop over bearers agnostically 
 
+        // Shared rx buffer for all bearers
+        uint8_t rx_buffer[RX_BUFF_SIZE] = {0};
+        size_t rxd_size = 0;
+
         // RTT trigger message
-        const size_t tx_data_len = 6;
-        const uint8_t tx_data[tx_data_len] = {0xFF, 0x00, 0xFF, 0x00, 0xFF, lora868metrics.get_counter()};
+        const size_t tx_data_len = 6; // same as RF433
+        const uint8_t lora868_tx_data[tx_data_len] = {0xFF, 0x00, 0xFF, 0x00, 0xFF, lora868metrics.get_counter()};
         
         // LoRa868 send 
         LOG_DEBUG("SENDING LoRa868 RTT ping with counter", lora868metrics.get_counter());
-        lora.send(tx_data, tx_data_len);
-        lora868metrics.start_rtt();
+        lora868.send(lora868_tx_data, tx_data_len);
+        lora868metrics.start_rtt(); 
         LOG_DEBUG("SENT LoRa868 RTT ping with counter", lora868metrics.get_counter());
         lora868metrics.increment_counter();
 
         // LoRa868 receive response
         LOG_DEBUG("WAITING for any LoRa868 RTT response (including out of sequence). ");
-        uint8_t rx_buffer[RX_BUFF_SIZE] = {0};
-        size_t rxd_size = 0;
-        switch(lora.receiveOne((uint8_t*)rx_buffer, sizeof(rx_buffer), &rxd_size, RX_WAIT_TIME)) {
+        switch(lora868.receiveOne((uint8_t*)rx_buffer, sizeof(rx_buffer), &rxd_size, RX_WAIT_TIME)) {
             case err::none:
                 LOG_TRACE("LoRa868 packet received successfully.");
                 LOG_TRACE("LoRa868 received response, length", rxd_size);
@@ -76,7 +79,7 @@ void loop() {
                 log_bytes(rx_buffer, rxd_size);
                 {
                     int rtt = 0;
-                    if(lora868metrics.complete_rtt((uint8_t*)tx_data, tx_data_len, rx_buffer, rxd_size, &rtt)) {
+                    if(lora868metrics.complete_rtt((uint8_t*)lora868_tx_data, tx_data_len, rx_buffer, rxd_size, &rtt)) {
                         if (rtt > 0) {
                             LOG_INFO("LoRa868 RTT was", rtt, "microseconds.");
                         }
@@ -97,13 +100,47 @@ void loop() {
                 break;
         }
        
+        // RF433 trigger message
+        const uint8_t rf433_tx_data[tx_data_len] = {0xFF, 0x00, 0xFF, 0x00, 0xFF, rf433metrics.get_counter()};
+
         
         // RF433
-        // LOG_DEBUG("SENDING RF433");
-        // rf433.send(tx_data, tx_data_len);
-        // LOG_DEBUG("SENT RF433");
+        LOG_DEBUG("SENDING RF433 with counter", rf433metrics.get_counter());
+        rf433.send(rf433_tx_data, tx_data_len);
+        rf433metrics.start_rtt();
+        LOG_DEBUG("SENT RF433 with counter", rf433metrics.get_counter());
+        rf433metrics.increment_counter();
 
-        // TODO RF433 receive response
+        // RF433 receive response
+        LOG_DEBUG("WAITING for any RF433 RTT response (including out of sequence). ");
+        switch(rf433.receiveOne((uint8_t*)rx_buffer, sizeof(rx_buffer), &rxd_size, RX_WAIT_TIME)) {
+            case err::none:
+                LOG_TRACE("RF433 packet received successfully.");
+                LOG_TRACE("RF433 received response, length", rxd_size);
+                LOG_TRACE("RF433 response payload:");
+                log_bytes(rx_buffer, rxd_size);
+                {
+                    int rtt = 0;
+                    if(rf433metrics.complete_rtt((uint8_t*)rf433_tx_data, tx_data_len, rx_buffer, rxd_size, &rtt)) {
+                        if (rtt > 0) {
+                            LOG_INFO("RF433 RTT was", rtt, "microseconds.");
+                        }
+                    }
+                }
+                break;
+            case err::timeout_expired:
+                LOG_TRACE("RF433 receive timed out.");
+                break;
+            case err::buffer_overflow:
+                LOG_WARN("RF433 buffer overflow occurred.");
+                break;
+            case err::waiting:
+                LOG_TRACE("RF433 waiting for packet.");
+                break;
+            default:
+                LOG_ERROR("RF433 unknown error occurred.");
+                break;
+        }
         
         delay(345); // TODO explicitly not 500 like any of my timeouts, to make timing distinct
         M5.update();
