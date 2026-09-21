@@ -8,7 +8,7 @@ LoRa868 lora868;
 RF433 rf433;
 
 #define RTT_INTERVAL 2000 // ms, 2 seconds
-#define RX_WAIT_TIME 100 // HACK must be greater than rx wait on slave side
+#define RX_WAIT_TIME 500
 #define RX_BUFF_SIZE 256
 
 void setup() {
@@ -55,7 +55,7 @@ void loop() {
         // TODO MUST add range test element e.g. for antenna testing talk in report. My RTT is a bit unfounded in science I am learning. it is mostly testing my code speed..
         // TODO add UI to trigger each test
         // TODO REPORT ONLY: add average rtt, but would need to account for lost packets somehow
-        // TODO loop over bearers agnostically 
+        // TODO loop over bearers agnostically e.g. iterator/strategy pattern
 
         // Shared rx buffer for all bearers
         uint8_t rx_buffer[RX_BUFF_SIZE] = {0};
@@ -66,8 +66,8 @@ void loop() {
         const uint8_t lora868_tx_data[tx_data_len] = {0xFF, 0x00, 0xFF, 0x00, 0xFF, lora868metrics.get_counter()};
         
         // LoRa868 send, if sufficient time has passed
-        LOG_DEBUG("SENDING LoRa868 RTT ping with counter", lora868metrics.get_counter());
         if (millis() - lastTimeSent868 >= RTT_INTERVAL) {
+            LOG_DEBUG("SENDING LoRa868 RTT ping with counter", lora868metrics.get_counter());
             lora868.send(lora868_tx_data, tx_data_len);
             lastTimeSent868 = millis();
             lora868metrics.start_rtt(); 
@@ -108,8 +108,8 @@ void loop() {
 
         
         // RF433 send, if sufficient time has passed
-        LOG_DEBUG("SENDING RF433 with counter", rf433metrics.get_counter());
         if (millis() - lastTimeSent433 >= RTT_INTERVAL) {
+            LOG_DEBUG("SENDING RF433 with counter", rf433metrics.get_counter());
             rf433.send(rf433_tx_data, tx_data_len);
             lastTimeSent433 = millis();
             rf433metrics.start_rtt();

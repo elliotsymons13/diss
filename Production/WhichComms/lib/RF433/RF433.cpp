@@ -163,7 +163,7 @@ int parsedData(rmt_item32_t* item, size_t rx_size, uint8_t* dataptr, size_t maxs
 
                     bitcnt++;
                     if (bitcnt >= 8) { // i.e. if byte complete
-                        LOG_TRACE("byte:", byte_cnt, "=", data); // print the byte in hex (2 digits)
+                        // LOG_TRACE("byte:", byte_cnt, "=", data); // print the byte in hex (2 digits)
                         if (byte_cnt >= maxsize) {
                             LOG_WARN("Buffer overflow, maxsize=", maxsize, ". Partial rx only.");
                             return byte_cnt;
@@ -228,7 +228,7 @@ err RF433::_tryRx(uint8_t* buffer, size_t buffer_size, size_t* rxd_size, uint32_
 
     while (true) {
         if (millis() - start_time >= (timeout_ms)) {
-            LOG_WARN("RX TIMEOUT 2");
+            // LOG_WARN("RX TIMEOUT 2");
             return err::timeout_expired;
         }
 
@@ -236,7 +236,7 @@ err RF433::_tryRx(uint8_t* buffer, size_t buffer_size, size_t* rxd_size, uint32_
         rmt_item32_t* item = (rmt_item32_t*)xRingbufferReceive(this->rx_ring_buff, &rx_size, timeout_ms/3);
 
         if (item == nullptr) {
-            LOG_TRACE("RX TIMEOUT 1");
+            // LOG_TRACE("RX TIMEOUT 1");
             break; // timeout occurred, exit the loop
         }
         if (rx_size != 0) {
@@ -249,7 +249,7 @@ err RF433::_tryRx(uint8_t* buffer, size_t buffer_size, size_t* rxd_size, uint32_
             parsed_size = parsedData(item, rx_size, databuff, MAXSIZE);
             // LOG_TRACE("Parsed size:", parsed_size);
             if (parsed_size > 0 && validatedData(parsed_size, databuff, &conveyed_size)) {
-                LOG_TRACE("Data has correct length, header. Parsed Ddta (incl header)", parsed_size, "bytes:");
+                // LOG_TRACE("Data has correct length, header. Parsed Ddta (incl header)", parsed_size, "bytes:");
                 log_bytes(databuff, parsed_size);
                 gotComplete = true;
                 // (*received_count)++;
@@ -262,7 +262,7 @@ err RF433::_tryRx(uint8_t* buffer, size_t buffer_size, size_t* rxd_size, uint32_
         }
         vRingbufferReturnItem(this->rx_ring_buff, (void*)item);
         if (gotComplete) {
-            LOG_TRACE("RECEIVED VALID DATA. exiting rx attempt");
+            // LOG_TRACE("RECEIVED VALID DATA. exiting rx attempt");
             if (buffer == nullptr || rxd_size == nullptr || conveyed_size > buffer_size) {
                 rmt_rx_stop(RMT_RX_CHANNEL);
                 return err::buffer_overflow;
@@ -271,7 +271,7 @@ err RF433::_tryRx(uint8_t* buffer, size_t buffer_size, size_t* rxd_size, uint32_
             memcpy(buffer, databuff + SYNC_HEADER_SIZE + LEN_FIELD_SIZE, conveyed_size);
             *rxd_size = conveyed_size;
             rmt_rx_stop(RMT_RX_CHANNEL);
-            LOG_TRACE("RMT RX stopped - SUCCESS");
+            // LOG_TRACE("RMT RX stopped - SUCCESS");
             return err::none;
         }
 

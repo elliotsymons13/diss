@@ -5,7 +5,7 @@
 LoRa868 lora868;
 RF433 rf433;
 
-#define RX_WAIT_TIME 50
+#define RX_WAIT_TIME 500
 #define RX_BUFF_SIZE 256
 
 void setup() {
@@ -49,7 +49,7 @@ void loop() {
                 lora868.send(buffer, rxd_size); // echo back the received packet
                 break;
             case err::timeout_expired:
-                LOG_TRACE("Nothing received within timeout. Could do other things now, but this example will just loop and try again."); // nothing rx'd
+                LOG_TRACE("Nothing LoRa868 received within timeout. "); // nothing rx'd
                 break;
             case err::buffer_overflow:
                 LOG_WARN("Buffer overflow occurred while receiving LoRa868 packet.");
