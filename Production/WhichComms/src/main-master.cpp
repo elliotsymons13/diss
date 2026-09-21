@@ -2,7 +2,19 @@
 
 #include <WhichCommsCommon.h>
 #include <WhichCommsMetrics.h>
-#include "M5Unified.h"
+// #include "M5Unified.h"
+#include <M5GFX.h>
+#include <M5CoreS3.h>
+#include <UserInterface.h>
+
+// user-configurable UI configuration constants
+#define NUM_BUTTONS 3
+#define NUM_STATUS_ROWS 1
+#define NUM_BUTTON_ROWS 4
+
+M5Canvas canvas;
+M5GFX display;
+UserInterface ui(display, canvas);
 
 LoRa868 lora868; 
 RF433 rf433;
@@ -11,8 +23,57 @@ RF433 rf433;
 #define RX_WAIT_TIME 500
 #define RX_BUFF_SIZE 256
 
+bool setup_ui() {
+	ui.configure(TEXT_SIZE, NUM_BUTTONS, NUM_BUTTON_ROWS, NUM_STATUS_ROWS);
+	if (!ui.drawInitial()) {
+		LOG_ERROR("UserInterface initial draw failed. ");
+        return false;
+	} else {
+		LOG_TRACE("UserInterface initial draw succeeded. ");
+	}
+
+	ui.setStatusContent(0, "MASTER");
+	ui.drawStatuses();
+	ui.setButtonLabel(0, "SEND");
+    ui.setButtonLabel(1, "<>");
+    ui.setButtonLabel(2, "<>");
+	ui.drawButtons();   
+    return true;
+}
+
+// check if any button was newly pressed; if so, return true and set btn to buttonID
+bool newButtonPress(UserInterface& ui, uint8_t& btn) {
+
+	m5::Touch_Class::touch_detail_t touch = CoreS3.Touch.getDetail();
+	
+    if (touch.wasClicked()) {
+        LOG_INFO("Touch was clicked. ");
+    }
+    if (touch.wasPressed()) {
+        LOG_INFO("Touch was pressed. ");
+    }
+
+    // if (!touch.wasReleased()) {
+	// 	return false;
+	// }
+
+	for (uint8_t i = 0; i < NUM_BUTTONS; i++) {
+		if (ui.buttonWasPressed(i, touch.x, touch.y)) {
+		LOG_TRACE("Button ", i, " was pressed. ");
+		btn = i;
+		return true;
+		}
+	}
+	LOG_TRACE("A touch outside of any button area was detected. ");
+	return false;
+
+}
+
 void setup() {
-    M5.begin();
+	// Initialise M5CoreS3
+	auto cfg = M5.config();
+	CoreS3.begin(cfg);
+    
     LOG_SET_LEVEL(GLOBAL_LOG_LEVEL);
     await_serial(); // must await serial before setup, so failures can be logged
 
@@ -32,8 +93,15 @@ void setup() {
     }
     rf433.post_config();
 
+    if (!setup_ui()) {
+        LOG_ERROR("Failed to setup UI. BLOCKING.");
+        block_forever();
+    }
+
 }
 
+uint8_t logs_written = 0;
+uint8_t lastBtnPressed = -1;
 
 void loop() {
 
@@ -144,6 +212,14 @@ void loop() {
                 LOG_ERROR("RF433 unknown error occurred.");
                 break;
         }
-        M5.update();
+
+        bool newPress = newButtonPress(ui, lastBtnPressed);
+        if (newPress) {
+            ui.setLogContent(logs_written++, "Button " + String(lastBtnPressed) + " was pressed!\n");
+        }
+        
+        ui.drawLogs();
+
+        CoreS3.update();
     }
 }
