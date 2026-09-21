@@ -7,7 +7,8 @@
 LoRa868 lora868; 
 RF433 rf433;
 
-#define RX_WAIT_TIME 700 // HACK must be greater than rx wait on slave side
+#define RTT_INTERVAL 2000 // ms, 2 seconds
+#define RX_WAIT_TIME 100 // HACK must be greater than rx wait on slave side
 #define RX_BUFF_SIZE 256
 
 void setup() {
@@ -38,6 +39,8 @@ void loop() {
 
     WhichCommsMetrics lora868metrics;
     WhichCommsMetrics rf433metrics;
+    int lastTimeSent433 = millis();
+    int lastTimeSent868 = millis();
 
     LOG_DEBUG("MASTER entering main loop");
     while (true) {
@@ -62,12 +65,15 @@ void loop() {
         const size_t tx_data_len = 6; // same as RF433
         const uint8_t lora868_tx_data[tx_data_len] = {0xFF, 0x00, 0xFF, 0x00, 0xFF, lora868metrics.get_counter()};
         
-        // LoRa868 send 
+        // LoRa868 send, if sufficient time has passed
         LOG_DEBUG("SENDING LoRa868 RTT ping with counter", lora868metrics.get_counter());
-        lora868.send(lora868_tx_data, tx_data_len);
-        lora868metrics.start_rtt(); 
-        LOG_DEBUG("SENT LoRa868 RTT ping with counter", lora868metrics.get_counter());
-        lora868metrics.increment_counter();
+        if (millis() - lastTimeSent868 >= RTT_INTERVAL) {
+            lora868.send(lora868_tx_data, tx_data_len);
+            lastTimeSent868 = millis();
+            lora868metrics.start_rtt(); 
+            LOG_DEBUG("SENT LoRa868 RTT ping with counter", lora868metrics.get_counter());
+            lora868metrics.increment_counter();
+        }
 
         // LoRa868 receive response
         LOG_DEBUG("WAITING for any LoRa868 RTT response (including out of sequence). ");
@@ -92,9 +98,6 @@ void loop() {
             case err::buffer_overflow:
                 LOG_WARN("LoRa868 buffer overflow occurred.");
                 break;
-            case err::waiting:
-                LOG_TRACE("LoRa868 waiting for packet.");
-                break;
             default:
                 LOG_ERROR("LoRa868 unknown error occurred.");
                 break;
@@ -104,12 +107,15 @@ void loop() {
         const uint8_t rf433_tx_data[tx_data_len] = {0xFF, 0x00, 0xFF, 0x00, 0xFF, rf433metrics.get_counter()};
 
         
-        // RF433
+        // RF433 send, if sufficient time has passed
         LOG_DEBUG("SENDING RF433 with counter", rf433metrics.get_counter());
-        rf433.send(rf433_tx_data, tx_data_len);
-        rf433metrics.start_rtt();
-        LOG_DEBUG("SENT RF433 with counter", rf433metrics.get_counter());
-        rf433metrics.increment_counter();
+        if (millis() - lastTimeSent433 >= RTT_INTERVAL) {
+            rf433.send(rf433_tx_data, tx_data_len);
+            lastTimeSent433 = millis();
+            rf433metrics.start_rtt();
+            LOG_DEBUG("SENT RF433 with counter", rf433metrics.get_counter());
+            rf433metrics.increment_counter();
+        }
 
         // RF433 receive response
         LOG_DEBUG("WAITING for any RF433 RTT response (including out of sequence). ");
@@ -134,15 +140,10 @@ void loop() {
             case err::buffer_overflow:
                 LOG_WARN("RF433 buffer overflow occurred.");
                 break;
-            case err::waiting:
-                LOG_TRACE("RF433 waiting for packet.");
-                break;
             default:
                 LOG_ERROR("RF433 unknown error occurred.");
                 break;
         }
-        
-        delay(345); // TODO explicitly not 500 like any of my timeouts, to make timing distinct
         M5.update();
     }
 }

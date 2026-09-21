@@ -227,13 +227,13 @@ err RF433::_tryRx(uint8_t* buffer, size_t buffer_size, size_t* rxd_size, uint32_
 
 
     while (true) {
-        if ((millis() - start_time >= timeout_ms)) {
-            LOG_TRACE("RX TIMEOUT 2");
+        if (millis() - start_time >= (timeout_ms)) {
+            LOG_WARN("RX TIMEOUT 2");
             return err::timeout_expired;
         }
 
         size_t rx_size     = 0;
-        rmt_item32_t* item = (rmt_item32_t*)xRingbufferReceive(this->rx_ring_buff, &rx_size, 500);
+        rmt_item32_t* item = (rmt_item32_t*)xRingbufferReceive(this->rx_ring_buff, &rx_size, timeout_ms/3);
 
         if (item == nullptr) {
             LOG_TRACE("RX TIMEOUT 1");
@@ -241,22 +241,22 @@ err RF433::_tryRx(uint8_t* buffer, size_t buffer_size, size_t* rxd_size, uint32_
         }
         if (rx_size != 0) {
             memset(databuff, 0, sizeof(databuff)); // reset
-            LOG_TRACE("---------");
-            LOG_TRACE("RX size:", rx_size);
+            // LOG_TRACE("---------");
+            // LOG_TRACE("RX size:", rx_size);
             rx_size = rx_size / sizeof(rmt_item32_t); // convert from bytes to number of RMT items
-            LOG_TRACE("RX size (in RMT items):", rx_size);
+            // LOG_TRACE("RX size (in RMT items):", rx_size);
 
             parsed_size = parsedData(item, rx_size, databuff, MAXSIZE);
-            LOG_TRACE("Parsed size:", parsed_size);
+            // LOG_TRACE("Parsed size:", parsed_size);
             if (parsed_size > 0 && validatedData(parsed_size, databuff, &conveyed_size)) {
-                LOG_INFO("Data has correct length, header. Parsed Ddta (incl header)", parsed_size, "bytes:");
+                LOG_TRACE("Data has correct length, header. Parsed Ddta (incl header)", parsed_size, "bytes:");
                 log_bytes(databuff, parsed_size);
                 gotComplete = true;
                 // (*received_count)++;
             } else if (parsed_size > 0) {
-                LOG_TRACE("INVALID DATA RECEIVED (but non-zero parsed_size =", parsed_size, ").");
+                // LOG_TRACE("INVALID DATA RECEIVED (but non-zero parsed_size =", parsed_size, ").");
             } else {
-                LOG_TRACE("NO DATA PARSED (parsed_size =", parsed_size, ").");
+                // LOG_TRACE("NO DATA PARSED (parsed_size =", parsed_size, ").");
             }
             
         }
@@ -277,8 +277,8 @@ err RF433::_tryRx(uint8_t* buffer, size_t buffer_size, size_t* rxd_size, uint32_
 
     }
     rmt_rx_stop(RMT_RX_CHANNEL);
-    LOG_TRACE("RMT RX stopped - Timeout");
-    return err::waiting;
+    // LOG_TRACE("RMT RX stopped - Timeout");
+    return err::timeout_expired;
 }
 
 

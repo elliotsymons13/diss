@@ -5,7 +5,7 @@
 LoRa868 lora868;
 RF433 rf433;
 
-#define RX_WAIT_TIME 500
+#define RX_WAIT_TIME 50
 #define RX_BUFF_SIZE 256
 
 void setup() {
@@ -51,6 +51,12 @@ void loop() {
             case err::timeout_expired:
                 LOG_TRACE("Nothing received within timeout. Could do other things now, but this example will just loop and try again."); // nothing rx'd
                 break;
+            case err::buffer_overflow:
+                LOG_WARN("Buffer overflow occurred while receiving LoRa868 packet.");
+                break;
+            default:
+                LOG_ERROR("Unsupported error occurred while receiving LoRa868 packet.");
+                break;
         }
 
         // RF433 test case handling
@@ -70,14 +76,10 @@ void loop() {
             case err::buffer_overflow:
                 LOG_WARN("Buffer overflow occurred while receiving RF433 packet.");
                 break;
-            case err::waiting:
-                // TODO Could do other things now, but this example will just loop and try again.
-                break;
             default:
                 LOG_ERROR("Unsupported error occurred while receiving RF433 packet.");
                 break;
         }
-        // delay(10);
         M5.update();
     }
 }

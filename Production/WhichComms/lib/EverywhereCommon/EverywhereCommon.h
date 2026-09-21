@@ -10,7 +10,6 @@ bool equal(uint8_t* buff_a, uint8_t* buff_b, size_t len);
 
 enum class err {
     none,
-    waiting,
     timeout_expired, 
     buffer_overflow
 };
