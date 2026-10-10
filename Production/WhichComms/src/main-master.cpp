@@ -104,8 +104,8 @@ uint8_t logs_written = 0;
 uint8_t lastBtnPressed = -1;
 
 
-bool packet_loss_test(WhichCommsMetrics& metrics, WhichCommsBearer& bearer) {
-    const size_t tx_data_len = 6; // same as RF433
+bool packet_loss_test(WhichCommsMetrics& metrics, OneComms& bearer) {
+    const size_t tx_data_len = 6; 
     const uint8_t tx_data[tx_data_len] = {0xFF, 0x00, 0xFF, 0x00, 0xFF, metrics.get_counter()};
            
     const uint8_t pings = 25;
@@ -116,19 +116,19 @@ bool packet_loss_test(WhichCommsMetrics& metrics, WhichCommsBearer& bearer) {
         int rtt = 0;
 
         // send ping and wait for response
-        LOG_DEBUG("Sending LoRa868 ping number", i);
-        lora868.send(tx_data, tx_data_len);
+        LOG_DEBUG("Sending ping number", i);
+        bearer.send(tx_data, tx_data_len);
         if(metrics.complete_rtt((uint8_t*)tx_data, tx_data_len, rx_buffer, rxd_size, &rtt)) {
-            LOG_INFO("Received LoRa868 response for ping number", i);
+            LOG_INFO("Received response for ping number", i);
             acks++;
             if (rtt > 0) {
                 LOG_INFO("RTT was", rtt, "microseconds.");
             }
         } else {
-            LOG_INFO("Failed to receive LoRa868 response for ping number", i);
+            LOG_INFO("Failed to receive response for ping number", i);
         }
     }
-    LOG_INFO("LoRa868 packet loss rate:", (pings - acks) * 100.0f / pings, "%");
+    LOG_INFO("Packet loss rate:", (pings - acks) * 100.0f / pings, "%");
 }
 
 void loop() {
