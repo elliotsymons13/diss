@@ -103,6 +103,34 @@ void setup() {
 uint8_t logs_written = 0;
 uint8_t lastBtnPressed = -1;
 
+
+bool packet_loss_test(WhichCommsMetrics& metrics, WhichCommsBearer& bearer) {
+    const size_t tx_data_len = 6; // same as RF433
+    const uint8_t tx_data[tx_data_len] = {0xFF, 0x00, 0xFF, 0x00, 0xFF, metrics.get_counter()};
+           
+    const uint8_t pings = 25;
+    uint8_t acks = 0;
+    for (uint8_t i = 0; i < pings; i++) {
+        uint8_t rx_buffer[RX_BUFF_SIZE] = {0};
+        size_t rxd_size = 0;
+        int rtt = 0;
+
+        // send ping and wait for response
+        LOG_DEBUG("Sending LoRa868 ping number", i);
+        lora868.send(tx_data, tx_data_len);
+        if(metrics.complete_rtt((uint8_t*)tx_data, tx_data_len, rx_buffer, rxd_size, &rtt)) {
+            LOG_INFO("Received LoRa868 response for ping number", i);
+            acks++;
+            if (rtt > 0) {
+                LOG_INFO("RTT was", rtt, "microseconds.");
+            }
+        } else {
+            LOG_INFO("Failed to receive LoRa868 response for ping number", i);
+        }
+    }
+    LOG_INFO("LoRa868 packet loss rate:", (pings - acks) * 100.0f / pings, "%");
+}
+
 void loop() {
 
     WhichCommsMetrics lora868metrics;
@@ -110,6 +138,11 @@ void loop() {
     int lastTimeSent433 = millis();
     int lastTimeSent868 = millis();
 
+    // HACK illustrative packet loss metric, using RTT
+    packet_loss_test(lora868metrics, lora868);
+    while (true){} // HACK block to do above test only
+    // FIXME should really factor about below main to a serials file, just so I don't have to keep messing around like this...
+    
     LOG_DEBUG("MASTER entering main loop");
     while (true) {
 

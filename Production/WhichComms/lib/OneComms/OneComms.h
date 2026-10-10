@@ -16,7 +16,7 @@ class OneComms {
         virtual err receiveOne(uint8_t* buffer, size_t buffer_size, size_t* rxd_size, uint32_t timeout_ms) = 0;
 
     protected:
-        comm mode = comm::mode_invalid; // TODO use in all derived classes
+        comm mode = comm::mode_invalid; // TODO use in ALL derived classes
 };
 
 #endif // ONECOMMS_H

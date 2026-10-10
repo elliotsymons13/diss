@@ -123,7 +123,7 @@ bool RF433::send(const uint8_t* data, size_t buffer_size) {
     if (GLOBAL_LOG_LEVEL == DebugLogLevel::LVL_TRACE) Serial.println();
     const uint32_t rmt_items = 2 + packet_len_with_header * 8; // RMT protocol has 2 leading items (start codes) and then 8 items per byte of data
     LOG_TRACE("Sending packet -", buffer_size, "bytes encoded in", rmt_items, "RMT items");
-    for (int i = 0; i < 5; i++) { // HACK? sending three times - rx only seems to work if I do this. may be a poor lib, poor hardware, but this works
+    for (int i = 0; i < 5; i++) { // sending 5 times - rx only seems to work if I do this. may be a poor lib, poor hardware, but this works
         ESP_ERROR_CHECK(rmt_write_items(RMT_TX_CHANNEL, rmtbuff, rmt_items, false));
         ESP_ERROR_CHECK(rmt_wait_tx_done(RMT_TX_CHANNEL, portMAX_DELAY));
     }
