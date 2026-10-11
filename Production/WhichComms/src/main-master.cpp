@@ -104,13 +104,13 @@ uint8_t logs_written = 0;
 uint8_t lastBtnPressed = -1;
 
 
-bool packet_loss_test(WhichCommsMetrics& metrics, OneComms& bearer) {
-    const size_t tx_data_len = 6; 
-    const uint8_t tx_data[tx_data_len] = {0xFF, 0x00, 0xFF, 0x00, 0xFF, metrics.get_counter()};
-           
+void packet_loss_test(WhichCommsMetrics& metrics, OneComms& bearer) {
+    
     const uint8_t pings = 25;
     uint8_t acks = 0;
     for (uint8_t i = 0; i < pings; i++) {
+        const size_t tx_data_len = 6; 
+        const uint8_t tx_data[tx_data_len] = {0xFF, 0x00, 0xFF, 0x00, 0xFF, metrics.get_counter()};
         uint8_t rx_buffer[RX_BUFF_SIZE] = {0};
         size_t rxd_size = 0;
         int rtt = 0;
@@ -118,17 +118,49 @@ bool packet_loss_test(WhichCommsMetrics& metrics, OneComms& bearer) {
         // send ping and wait for response
         LOG_DEBUG("Sending ping number", i);
         bearer.send(tx_data, tx_data_len);
-        if(metrics.complete_rtt((uint8_t*)tx_data, tx_data_len, rx_buffer, rxd_size, &rtt)) {
-            LOG_INFO("Received response for ping number", i);
-            acks++;
-            if (rtt > 0) {
-                LOG_INFO("RTT was", rtt, "microseconds.");
+        if (err::none == bearer.receiveOne((uint8_t*)rx_buffer, sizeof(rx_buffer), &rxd_size, RX_WAIT_TIME)) {
+            if(metrics.complete_rtt((uint8_t*)tx_data, tx_data_len, rx_buffer, rxd_size, &rtt)) {
+                LOG_INFO("Received response for ping number", i);
+                acks++;
+                if (rtt > 0) {
+                    LOG_INFO("RTT was", rtt, "microseconds.");
+                }
+            } else {
+                LOG_INFO("Failed to receive response for ping number", i);
             }
-        } else {
-            LOG_INFO("Failed to receive response for ping number", i);
         }
     }
+
     LOG_INFO("Packet loss rate:", (pings - acks) * 100.0f / pings, "%");
+}
+
+void rtt_on_press(WhichCommsMetrics& metrics, OneComms& bearer) {
+    while (true) {
+        // Wait for 0 press to trigger next RTT test
+        uint8_t lastBtnPressed = 255;
+        while (!newButtonPress(ui, lastBtnPressed) && lastBtnPressed != 0) {
+            // wait for press of 0
+        }
+
+        const uint8_t iter = metrics.get_counter();
+        const size_t tx_data_len = 6; 
+        const uint8_t tx_data[tx_data_len] = {0xFF, 0x00, 0xFF, 0x00, 0xFF, iter};
+        uint8_t rx_buffer[RX_BUFF_SIZE] = {0};
+        size_t rxd_size = 0;
+        int rtt = 0;
+
+        // send ping and wait for response
+        if (err::none == bearer.receiveOne((uint8_t*)rx_buffer, sizeof(rx_buffer), &rxd_size, RX_WAIT_TIME)) {
+            if(metrics.complete_rtt((uint8_t*)tx_data, tx_data_len, rx_buffer, rxd_size, &rtt)) {
+                LOG_INFO("Received response for ping number", iter);
+                if (rtt > 0) {
+                    LOG_INFO("RTT was", rtt, "microseconds.");
+                }
+            } else {
+                LOG_INFO("Failed to receive response for ping number", iter, "within timeout");
+            }
+        }
+    }
 }
 
 void loop() {
@@ -139,7 +171,8 @@ void loop() {
     int lastTimeSent868 = millis();
 
     // HACK illustrative packet loss metric, using RTT
-    packet_loss_test(lora868metrics, lora868);
+    // packet_loss_test(lora868metrics, lora868);
+    rtt_on_press(lora868metrics, lora868);
     while (true){} // HACK block to do above test only
     // FIXME should really factor about below main to a serials file, just so I don't have to keep messing around like this...
     
