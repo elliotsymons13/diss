@@ -21,10 +21,10 @@
 
 // LoRa Parameters Config
 // #define LORA_FREQ     433E6
-#define LORA_FREQ     868E6
+#define LORA_FREQ     868.3E6
 #define LORA_SF       12
 #define LORA_BW       125E3
-#define LORA_TX_POWER 17
+#define LORA_TX_POWER 13 
 
 #define MAX_LORA_INIT_ATTEMPTS 5
 #define LORA_INIT_ATTEMPT_DELAY_MS 1000

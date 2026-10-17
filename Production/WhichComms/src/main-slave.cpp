@@ -5,13 +5,17 @@
 LoRa868 lora868;
 RF433 rf433;
 
+// #define AWAIT_SERIAL
+
 #define RX_WAIT_TIME 500
 #define RX_BUFF_SIZE 256
 
 void setup() {
     M5.begin();
     LOG_SET_LEVEL(GLOBAL_LOG_LEVEL);
+    #ifdef AWAIT_SERIAL
     await_serial(); // must await serial before setup, so failures can be logged
+    #endif
 
     if (!setup_common_lora868(&lora868)) {
         LOG_ERROR("Critical error. BLOCKING.");
@@ -31,12 +35,16 @@ void setup() {
 
 }
 
+#define SLAVE_MODE_LORA // toggle for LoRa868 or RF433 slave modes
+
 void loop() {
 
     uint8_t buffer[RX_BUFF_SIZE] = {0}; // arbitrary length, but library will handle any buffer overflow internally
     size_t rxd_size = 0;
     LOG_INFO("SLAVE Awaiting LoRa or RF433 packet.");
     while (true) {
+
+        #ifdef SLAVE_MODE_LORA
 
         // LoRa868 test case 
         memset(buffer, 0, sizeof(buffer)); 
@@ -59,6 +67,8 @@ void loop() {
                 break;
         }
 
+        #else // ifdef SLAVE_MODE_LORA
+
         // RF433 test case handling
         memset(buffer, 0, sizeof(buffer)); 
         rxd_size = 0; 
@@ -80,6 +90,8 @@ void loop() {
                 LOG_ERROR("Unsupported error occurred while receiving RF433 packet.");
                 break;
         }
+
+        #endif // ifdef SLAVE_MODE_LORA
         M5.update();
     }
 }

@@ -18,6 +18,7 @@ bool RF433::pre_config() {
     this->txconfig.tx_config.idle_output_en = true;
     this->txconfig.tx_config.idle_level     = rmt_idle_level_t(0);
     this->txconfig.clk_div                  = RMT_CLK_DIV;
+    this->txconfig.tx_config.carrier_duty_percent = 10; // as per Ofcom duty cycle limit for 10mW transmission at device's fixed frequency 
 
     this->rxconfig = {}; 
     this->rxconfig.rmt_mode                      = RMT_MODE_RX;
