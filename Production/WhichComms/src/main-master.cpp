@@ -7,7 +7,7 @@
 #include <M5CoreS3.h>
 #include <UserInterface.h>
 
-#define AWAIT_SERIAL
+// #define AWAIT_SERIAL
 
 // user-configurable UI configuration constants
 #define NUM_BUTTONS 3
@@ -107,7 +107,7 @@ void setup() {
  */
 uint8_t packet_loss_test(WhichCommsMetrics& metrics, OneComms& bearer) {
     
-    const uint8_t pings = 5;
+    const uint8_t pings = 20;
     uint8_t acks = 0;
     for (uint8_t i = 0; i < pings; i++) {
         const size_t tx_data_len = 6; 
@@ -197,17 +197,6 @@ void loop() {
 
         // check if any button was pressed
         bool newPress = newButtonPress(ui, lastBtnPressed);
-        // if (newPress) {
-        //     // notify the press registered using the UI log element, handling if log is full 
-        //     if (!ui.setLogContent(logs_written++, "Button " + String(lastBtnPressed) + " was pressed!\n")) {
-        //         LOG_ERROR("Failed to set log content for button press");
-        //         if (!ui.addStatusContent(0, " - LOG OVERFLOW")) {
-        //             LOG_ERROR("Failed to set status content for log overflow");
-        //         }
-        //     }
-        // }
-        // ui.drawLogs();
-        // ui.drawStatuses();
 
         // if button 0 was pressed, perform packet loss test
         if (newPress && lastBtnPressed == 0) {
