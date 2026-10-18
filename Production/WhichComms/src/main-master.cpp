@@ -7,7 +7,7 @@
 #include <M5CoreS3.h>
 #include <UserInterface.h>
 
-// #define AWAIT_SERIAL
+#define AWAIT_SERIAL
 
 // user-configurable UI configuration constants
 #define NUM_BUTTONS 3
@@ -45,7 +45,7 @@ bool setup_ui() {
 
 // check if any button was newly pressed; if so, return true and set btn to buttonID
 bool newButtonPress(UserInterface& ui, uint8_t& btn) {
-
+    CoreS3.update();
     m5::Touch_Class::touch_detail_t touch = CoreS3.Touch.getDetail();
 	
     if (touch.wasPressed()) {
@@ -118,6 +118,7 @@ uint8_t packet_loss_test(WhichCommsMetrics& metrics, OneComms& bearer) {
 
         // send ping and wait for response
         LOG_DEBUG("Sending ping number", i);
+        metrics.start_rtt(); // record time started sending
         bearer.send(tx_data, tx_data_len);
 
         // await and handle any response
@@ -156,6 +157,7 @@ uint8_t packet_loss_test(WhichCommsMetrics& metrics, OneComms& bearer) {
  * Blocks forever. 
  * Can be used to assess if in range (ping, ack) or actually to measure RTT. */
 void rtt_on_press(WhichCommsMetrics& metrics, OneComms& bearer) {
+    LOG_INFO("Executing RTT on press tests (BLOCKING).");
     while (true) {
         // Wait for 0 press to trigger next RTT test
         uint8_t lastBtnPressed = 255;
@@ -163,6 +165,7 @@ void rtt_on_press(WhichCommsMetrics& metrics, OneComms& bearer) {
             // wait for press of 0
         }
 
+        LOG_DEBUG("Button 0 pressed, initiating RTT measurement.");
         const uint8_t iter = metrics.get_counter();
         const size_t tx_data_len = 6; 
         const uint8_t tx_data[tx_data_len] = {0xFF, 0x00, 0xFF, 0x00, 0xFF, iter};
@@ -170,12 +173,16 @@ void rtt_on_press(WhichCommsMetrics& metrics, OneComms& bearer) {
         size_t rxd_size = 0;
         int rtt = 0;
 
-        // send ping and wait for response
+        // send ping
+        metrics.start_rtt(); // record time started sending
+        bearer.send(tx_data, tx_data_len);
+
+        // wait for response
         if (err::none == bearer.receiveOne((uint8_t*)rx_buffer, sizeof(rx_buffer), &rxd_size, RX_WAIT_TIME)) {
             if(metrics.complete_rtt((uint8_t*)tx_data, tx_data_len, rx_buffer, rxd_size, &rtt)) {
                 LOG_INFO("Received response for ping number", iter);
                 if (rtt > 0) {
-                    LOG_INFO("RTT was", rtt, "microseconds.");
+                    LOG_INFO("RTT was", rtt, "microseconds,", rtt / 1000.0f, "milliseconds, and", rtt / 1000000.0f, "seconds.");
                 }
             } else {
                 LOG_INFO("Failed to receive response for ping number", iter, "within timeout");
@@ -192,6 +199,11 @@ void loop() {
 
     WhichCommsMetrics lora868metrics;
 
+    // === Case Study 2 code follows ===
+    // uncomment to perform case study 2, instead of 1
+    // rtt_on_press(lora868metrics, lora868); 
+
+    // === Case Study 1 code follows ===
     LOG_DEBUG("MASTER entering main loop");
     while (true) {
 
