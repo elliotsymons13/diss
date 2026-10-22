@@ -102,10 +102,11 @@ void setup() {
 
 
 /**
- * Perform a packet loss test by sending a series of pings and counting acknowledgements. 
+ * Perform a packet return rate test by sending a series of pings and counting acknowledgements. 
+ * Returns the percentage of packets NOT returned. The caller may invert this, to get packet return rate. 
  * Blocks until complete. 
  */
-uint8_t packet_loss_test(WhichCommsMetrics& metrics, OneComms& bearer) {
+uint8_t packet_return_failure_rate_test(WhichCommsMetrics& metrics, OneComms& bearer) {
     
     const uint8_t pings = 20;
     uint8_t acks = 0;
@@ -146,11 +147,11 @@ uint8_t packet_loss_test(WhichCommsMetrics& metrics, OneComms& bearer) {
                 break;
         }
     }
-    uint8_t packet_loss_rate = (pings - acks) * 100.0f / pings;
+    uint8_t packet_return_failure_rate = (pings - acks) * 100.0f / pings;
     LOG_INFO("Packets sent:", pings);
     LOG_INFO("Acknowledgements received:", acks);
-    LOG_INFO("Packet loss rate:", packet_loss_rate, "%");
-    return packet_loss_rate; 
+    LOG_INFO("Packet return failure rate:", packet_return_failure_rate, "%");
+    return packet_return_failure_rate; 
 }
 
 /** Every time button 0 is pressed, trigger a single RTT measurement. 
@@ -226,10 +227,10 @@ void loop() {
             ui.drawLogs();
             ui.drawStatuses();
 
-            uint8_t packet_loss_rate = packet_loss_test(lora868metrics, lora868);
+            uint8_t packet_return_failure_rate = packet_return_failure_rate_test(lora868metrics, lora868);
             
             // add result to UI log element, handling if log is full 
-            if (!ui.setLogContent(logs_written++, "Srl " + String(serial_count) + " PktLs: " + String(packet_loss_rate) + "%\n")) {
+            if (!ui.setLogContent(logs_written++, "Srl " + String(serial_count) + " PktLs: " + String(packet_return_failure_rate) + "%\n")) {
                 LOG_ERROR("Failed to set log content for button press");
                 if (!ui.addStatusContent(0, " - LOG OVERFLOW")) {
                     LOG_ERROR("Failed to set status content for log overflow");
